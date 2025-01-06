@@ -1,4 +1,4 @@
-TEST
+2025-01-06 TEST
 
 ![Langfuse GitHub Banner](https://github.com/langfuse/langfuse/assets/121163007/6035f0f3-d691-4963-b5d0-10cf506e9d42)
 
