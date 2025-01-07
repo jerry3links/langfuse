@@ -61,6 +61,13 @@ export const scoresTableCols: ColumnDefinition[] = [
     nullable: true,
   },
   {
+    name: "Eval Configuration ID",
+    id: "jobConfigurationId",
+    type: "string",
+    internal: 'je."job_configuration_id"',
+    nullable: true,
+  },
+  {
     name: "Trace Tags",
     id: "tags",
     type: "arrayOptions",

@@ -80,11 +80,10 @@ import { setUpSuperjson } from "@/src/utils/superjson";
 import { DB } from "@/src/server/db";
 import {
   addUserToSpan,
-  getTraceById,
+  getTraceByIdOrThrow,
   logger,
 } from "@langfuse/shared/src/server";
-import { isClickhouseAdminEligible } from "@/src/server/utils/checkClickhouseAccess";
-import { env } from "@/src/env.mjs";
+import { isClickhouseEligible } from "@/src/server/utils/checkClickhouseAccess";
 
 setUpSuperjson();
 
@@ -121,17 +120,13 @@ const withErrorHandling = t.middleware(async ({ ctx, next }) => {
   const res = await next({ ctx }); // pass the context to the next middleware
 
   if (!res.ok) {
-    logger.error(
-      `middleware intercepted error with code ${res.error.code}`,
-      res.error,
-    );
+    logger.error("middleware intercepted error", res.error);
 
     // Throw a new TRPC error with:
     // - The same error code as the original error
     // - Either the original error message OR "Internal error" if it's an INTERNAL_SERVER_ERROR
-    res.error = new TRPCError({
+    throw new TRPCError({
       code: res.error.code,
-      cause: null, // do not expose stack traces
       message:
         res.error.code !== "INTERNAL_SERVER_ERROR"
           ? res.error.message
@@ -146,7 +141,6 @@ const withErrorHandling = t.middleware(async ({ ctx, next }) => {
 const withOtelTracingProcedure = t.procedure.use(
   tracing({ collectInput: true, collectResult: true }),
 );
-
 /**
  * Public (unauthenticated) procedure
  *
@@ -223,9 +217,8 @@ const enforceUserIsAuthedAndProjectMember = t.middleware(
           },
         });
         if (!dbProject) {
-          logger.error(`Project with ${projectId} id not found`);
           throw new TRPCError({
-            code: "NOT_FOUND",
+            code: "INTERNAL_SERVER_ERROR",
             message: "Project not found",
           });
         }
@@ -244,7 +237,6 @@ const enforceUserIsAuthedAndProjectMember = t.middleware(
         });
       }
       // not a member
-      logger.error(`User is not a member of this project with id ${projectId}`);
       throw new TRPCError({
         code: "UNAUTHORIZED",
         message: "User is not a member of this project",
@@ -294,7 +286,6 @@ const enforceIsAuthedAndOrgMember = t.middleware(({ ctx, rawInput, next }) => {
   );
 
   if (!sessionOrg && ctx.session.user.admin !== true) {
-    logger.error(`User ${ctx.session.user.id} is not a member of org ${orgId}`);
     throw new TRPCError({
       code: "UNAUTHORIZED",
       message: "User is not a member of this organization",
@@ -327,7 +318,6 @@ export const protectedOrganizationProcedure = withOtelTracingProcedure
 const inputTraceSchema = z.object({
   traceId: z.string(),
   projectId: z.string(),
-  timestamp: z.date().nullish(),
   queryClickhouse: z.boolean().nullish(),
 });
 
@@ -338,24 +328,25 @@ const enforceTraceAccess = t.middleware(async ({ ctx, rawInput, next }) => {
     logger.error("Invalid input when parsing request body", result.error);
     throw new TRPCError({
       code: "BAD_REQUEST",
-      message: `Invalid input, ${result.error.message}`,
+      message: "Invalid input, traceId is required",
     });
   }
 
   const traceId = result.data.traceId;
   const projectId = result.data.projectId;
-  const timestamp = result.data.timestamp;
 
+  // if the user is eligible for clickhouse, and wants to use clickhouse, do so.
   let trace;
 
-  // first check clickhoue for admin use case if sent via the API accordingly
   if (
     result.data.queryClickhouse === true &&
-    isClickhouseAdminEligible(ctx.session?.user) // basically checks if user exists and admin
+    isClickhouseEligible(ctx.session?.user)
   ) {
-    trace = await getTraceById(traceId, projectId, timestamp ?? undefined);
-    // check from postgres for non admins when env is set accordingly
-  } else if (env.LANGFUSE_READ_FROM_POSTGRES_ONLY === "true") {
+    logger.info(
+      `Querying Clickhouse for traceid: ${traceId} and project: ${projectId} `,
+    );
+    trace = await getTraceByIdOrThrow(traceId, projectId);
+  } else {
     trace = await prisma.trace.findFirst({
       where: {
         id: traceId,
@@ -365,33 +356,25 @@ const enforceTraceAccess = t.middleware(async ({ ctx, rawInput, next }) => {
         public: true,
       },
     });
-    // check clickhouse otherwise
-  } else {
-    trace = await getTraceById(traceId, projectId, timestamp ?? undefined);
   }
 
-  if (!trace) {
-    logger.error(`Trace with id ${traceId} not found for project ${projectId}`);
+  if (!trace)
     throw new TRPCError({
       code: "NOT_FOUND",
       message: "Trace not found",
     });
-  }
 
   const sessionProject = ctx.session?.user?.organizations
     .flatMap((org) => org.projects)
     .find(({ id }) => id === projectId);
 
-  if (!trace.public && !sessionProject && ctx.session?.user?.admin !== true) {
-    logger.error(
-      `User ${ctx.session?.user?.id} is not a member of project ${projectId}`,
-    );
+  if (!trace.public && !sessionProject && ctx.session?.user?.admin !== true)
     throw new TRPCError({
       code: "UNAUTHORIZED",
       message:
         "User is not a member of this project and this trace is not public",
     });
-  }
+
   return next({
     ctx: {
       session: {
@@ -416,7 +399,6 @@ export const protectedGetTraceProcedure = withOtelTracingProcedure
 const inputSessionSchema = z.object({
   sessionId: z.string(),
   projectId: z.string(),
-  queryClickhouse: z.boolean().nullish(),
 });
 
 const enforceSessionAccess = t.middleware(async ({ ctx, rawInput, next }) => {
@@ -429,7 +411,6 @@ const enforceSessionAccess = t.middleware(async ({ ctx, rawInput, next }) => {
 
   const { sessionId, projectId } = result.data;
 
-  // trace sessions are stored in postgres. No need to check for clickhouse eligibility.
   const session = await prisma.traceSession.findFirst({
     where: {
       id: sessionId,
@@ -440,15 +421,11 @@ const enforceSessionAccess = t.middleware(async ({ ctx, rawInput, next }) => {
     },
   });
 
-  if (!session) {
-    logger.error(
-      `Session with id ${sessionId} not found for project ${projectId}`,
-    );
+  if (!session)
     throw new TRPCError({
       code: "NOT_FOUND",
       message: "Session not found",
     });
-  }
 
   const userSessionProject = ctx.session?.user?.organizations
     .flatMap((org) => org.projects)
@@ -458,16 +435,12 @@ const enforceSessionAccess = t.middleware(async ({ ctx, rawInput, next }) => {
     !session.public &&
     !userSessionProject &&
     ctx.session?.user?.admin !== true
-  ) {
-    logger.error(
-      `User ${ctx.session?.user?.id} is not a member of project ${projectId}`,
-    );
+  )
     throw new TRPCError({
       code: "UNAUTHORIZED",
       message:
         "User is not a member of this project and this session is not public",
     });
-  }
 
   return next({
     ctx: {

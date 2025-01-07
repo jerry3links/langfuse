@@ -108,10 +108,8 @@ function groupCategoricalScoreDataByTimestamp(
 ): Record<string, DatabaseRow[]> {
   return data.reduce(
     (acc, row) => {
-      if (row[scoreTimestampAccessor] === null) {
-        return acc;
-      }
-      const timestamp = new Date(row[scoreTimestampAccessor] ?? new Date());
+      const timestamp = row[scoreTimestampAccessor];
+      if (!(timestamp instanceof Date)) return acc;
       const key = convertDateToStringTimestamp(timestamp);
       if (!acc[key]) {
         acc[key] = [];

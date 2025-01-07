@@ -57,8 +57,6 @@ export const GenerationLatencyChart = ({
         },
         { type: "string", column: "model" },
       ],
-      queryClickhouse: useClickhouse(),
-      queryName: "model-latencies-over-time",
     },
     {
       trpc: {

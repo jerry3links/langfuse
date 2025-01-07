@@ -3,29 +3,7 @@
 
 import { UiColumnMapping } from "./types";
 
-export const observationsTableTraceUiColumnDefinitions: UiColumnMapping[] = [
-  {
-    uiTableName: "Trace Tags",
-    uiTableId: "traceTags",
-    clickhouseTableName: "traces",
-    clickhouseSelect: "t.tags",
-  },
-  {
-    uiTableName: "User ID",
-    uiTableId: "userId",
-    clickhouseTableName: "traces",
-    clickhouseSelect: 't."user_id"',
-  },
-  {
-    uiTableName: "Trace Name",
-    uiTableId: "traceName",
-    clickhouseTableName: "traces",
-    clickhouseSelect: 't."name"',
-  },
-];
-
 export const observationsTableUiColumnDefinitions: UiColumnMapping[] = [
-  ...observationsTableTraceUiColumnDefinitions,
   {
     uiTableName: "ID",
     uiTableId: "id",
@@ -50,7 +28,18 @@ export const observationsTableUiColumnDefinitions: UiColumnMapping[] = [
     clickhouseTableName: "observations",
     clickhouseSelect: 'o."trace_id"',
   },
-
+  {
+    uiTableName: "Trace Name",
+    uiTableId: "traceName",
+    clickhouseTableName: "observations",
+    clickhouseSelect: 't."name"',
+  },
+  {
+    uiTableName: "User ID",
+    uiTableId: "userId",
+    clickhouseTableName: "traces",
+    clickhouseSelect: 't."user_id"',
+  },
   {
     uiTableName: "Start Time",
     uiTableId: "startTime",
@@ -68,25 +57,21 @@ export const observationsTableUiColumnDefinitions: UiColumnMapping[] = [
     uiTableId: "timeToFirstToken",
     clickhouseTableName: "observations",
     clickhouseSelect:
-      "if(isNull(completion_start_time), NULL,  date_diff('milliseconds', start_time, completion_start_time))",
-    // If we use the default of Decimal64(12), we cannot filter for more than ~40min due to an overflow
-    clickhouseTypeOverwrite: "Decimal64(3)",
+      "if(isNull(completion_start_time), NULL,  date_diff('seconds', start_time, completion_start_time))}",
   },
   {
     uiTableName: "Latency (s)",
     uiTableId: "latency",
     clickhouseTableName: "observations",
     clickhouseSelect:
-      "if(isNull(end_time), NULL, date_diff('milliseconds', start_time, end_time))",
-    // If we use the default of Decimal64(12), we cannot filter for more than ~40min due to an overflow
-    clickhouseTypeOverwrite: "Decimal64(3)",
+      "if(isNull(end_time), NULL, date_diff('seconds', start_time, end_time))",
   },
   {
     uiTableName: "Tokens per second",
     uiTableId: "tokensPerSecond",
     clickhouseTableName: "observations",
     clickhouseSelect:
-      "(usage_details['input'] / date_diff('milliseconds', start_time, end_time))",
+      " if(isNull(end_time) && mapExists((k, v) -> (k = 'input'), usage_details) != 1, NULL, usage_details['input'] / date_diff('seconds', start_time, end_time)",
   },
   {
     uiTableName: "Input Cost ($)",
@@ -125,7 +110,7 @@ export const observationsTableUiColumnDefinitions: UiColumnMapping[] = [
     uiTableName: "Model",
     uiTableId: "model",
     clickhouseTableName: "observations",
-    clickhouseSelect: 'o."provided_model_name"',
+    clickhouseSelect: 'o."model"',
   },
   {
     uiTableName: "Input Tokens",
@@ -176,13 +161,19 @@ export const observationsTableUiColumnDefinitions: UiColumnMapping[] = [
   {
     uiTableName: "Prompt Name",
     uiTableId: "promptName",
-    clickhouseTableName: "observations",
-    clickhouseSelect: "o.prompt_name",
+    clickhouseTableName: "prompts",
+    clickhouseSelect: "p.name",
   },
   {
     uiTableName: "Prompt Version",
     uiTableId: "promptVersion",
-    clickhouseTableName: "observations",
-    clickhouseSelect: "o.prompt_version",
+    clickhouseTableName: "prompts",
+    clickhouseSelect: "p.version",
+  },
+  {
+    uiTableName: "Trace Tags",
+    uiTableId: "traceTags",
+    clickhouseTableName: "traces",
+    clickhouseSelect: "t.tags",
   },
 ];

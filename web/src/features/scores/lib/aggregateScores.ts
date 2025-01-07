@@ -1,6 +1,8 @@
 import {
   type ScoreAggregate,
   type ScoreSimplified,
+} from "@/src/features/scores/lib/types";
+import {
   type APIScore,
   type ScoreSource,
   type ScoreDataType,

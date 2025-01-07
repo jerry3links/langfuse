@@ -19,7 +19,6 @@ import {
   transformCategoricalScoresToChartData,
 } from "@/src/features/dashboard/lib/score-analytics-utils";
 import { NoDataOrLoading } from "@/src/components/NoDataOrLoading";
-import { useClickhouse } from "@/src/components/layouts/ClickhouseAdminToggle";
 
 export function CategoricalScoreChart(props: {
   projectId: string;
@@ -86,8 +85,6 @@ export function CategoricalScoreChart(props: {
             ]
           : []),
       ],
-      queryClickhouse: useClickhouse(),
-      queryName: "categorical-score-chart",
     },
     {
       trpc: {

@@ -15,7 +15,6 @@ export const filterOperators = {
   ],
   numberObject: ["=", ">", "<", ">=", "<="],
   boolean: ["=", "<>"],
-  null: ["is null", "is not null"],
 } as const;
 
 export const timeFilter = z.object({
@@ -69,12 +68,6 @@ export const booleanFilter = z.object({
   operator: z.enum(filterOperators.boolean),
   value: z.boolean(),
 });
-export const nullFilter = z.object({
-  type: z.literal("null"),
-  column: z.string(),
-  operator: z.enum(filterOperators.null),
-  value: z.literal(""),
-});
 export const singleFilter = z.discriminatedUnion("type", [
   timeFilter,
   stringFilter,
@@ -84,5 +77,4 @@ export const singleFilter = z.discriminatedUnion("type", [
   stringObjectFilter,
   numberObjectFilter,
   booleanFilter,
-  nullFilter,
 ]);

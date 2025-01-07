@@ -184,7 +184,6 @@ const getPlanBasedRateLimitConfig = (
 ): z.infer<typeof RateLimitConfig> => {
   switch (plan) {
     case "oss":
-    case "self-hosted:pro":
     case "self-hosted:enterprise":
       return {
         resource,
@@ -197,7 +196,7 @@ const getPlanBasedRateLimitConfig = (
         case "ingestion":
           return {
             resource: "ingestion",
-            points: 2000,
+            points: 1000,
             durationInSec: 60,
           };
         case "legacy-ingestion":
@@ -233,7 +232,7 @@ const getPlanBasedRateLimitConfig = (
         case "ingestion":
           return {
             resource: "ingestion",
-            points: 10000,
+            points: 5000,
             durationInSec: 60,
           };
         case "legacy-ingestion":

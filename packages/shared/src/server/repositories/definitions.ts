@@ -129,8 +129,8 @@ export const scoreRecordBaseSchema = z.object({
   project_id: z.string(),
   trace_id: z.string(),
   observation_id: z.string().nullish(),
-  name: z.string(),
-  value: z.number().nullish(),
+  name: z.string().nullish(),
+  value: z.union([z.number(), z.string()]).nullish(),
   source: z.string(),
   comment: z.string().nullish(),
   author_user_id: z.string().nullish(),
@@ -279,12 +279,9 @@ export const convertPostgresObservationToInsert = (
       : null,
     provided_usage_details: {},
     usage_details: {
-      input: observation.prompt_tokens >= 0 ? observation.prompt_tokens : null,
-      output:
-        observation.completion_tokens >= 0
-          ? observation.completion_tokens
-          : null,
-      total: observation.total_tokens >= 0 ? observation.total_tokens : null,
+      input: observation.prompt_tokens,
+      output: observation.completion_tokens,
+      total: observation.total_tokens,
     },
     provided_cost_details: {
       input: observation.input_cost?.toNumber() ?? null,

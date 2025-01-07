@@ -13,8 +13,7 @@ import {
 import { prisma } from "@langfuse/shared/src/db";
 import {
   DatabaseReadStream,
-  StorageServiceFactory,
-  StorageService,
+  S3StorageService,
   createSessionsAllQuery,
   sendBatchExportSuccessEmail,
   streamTransformations,
@@ -263,12 +262,6 @@ const getDatabaseReadStream = async ({
 export const handleBatchExportJob = async (
   batchExportJob: BatchExportJobType,
 ) => {
-  if (env.LANGFUSE_S3_BATCH_EXPORT_ENABLED !== "true") {
-    throw new Error(
-      "Batch export is not enabled. Configure environment variables to use this feature.",
-    );
-  }
-
   const { projectId, batchExportId } = batchExportJob;
 
   // Get job details from DB
@@ -330,23 +323,23 @@ export const handleBatchExportJob = async (
   const fileDate = new Date().toISOString();
   const fileExtension =
     exportOptions[jobDetails.format as BatchExportFileFormat].extension;
-  const fileName = `${env.LANGFUSE_S3_BATCH_EXPORT_PREFIX}${fileDate}-lf-${parsedQuery.data.tableName}-export-${projectId}.${fileExtension}`;
+  const fileName = `${fileDate}-lf-${parsedQuery.data.tableName}-export-${projectId}.${fileExtension}`;
   const expiresInSeconds =
     env.BATCH_EXPORT_DOWNLOAD_LINK_EXPIRATION_HOURS * 3600;
 
   // Stream upload results to S3
-  const bucketName = env.LANGFUSE_S3_BATCH_EXPORT_BUCKET;
+  const bucketName = env.S3_BUCKET_NAME;
   if (!bucketName) {
     throw new Error("No S3 bucket configured for exports.");
   }
 
-  const { signedUrl } = await StorageServiceFactory.getInstance({
+  const { signedUrl } = await new S3StorageService({
+    accessKeyId: env.S3_ACCESS_KEY_ID,
+    secretAccessKey: env.S3_SECRET_ACCESS_KEY,
     bucketName,
-    accessKeyId: env.LANGFUSE_S3_BATCH_EXPORT_ACCESS_KEY_ID,
-    secretAccessKey: env.LANGFUSE_S3_BATCH_EXPORT_SECRET_ACCESS_KEY,
-    endpoint: env.LANGFUSE_S3_BATCH_EXPORT_ENDPOINT,
-    region: env.LANGFUSE_S3_BATCH_EXPORT_REGION,
-    forcePathStyle: env.LANGFUSE_S3_BATCH_EXPORT_FORCE_PATH_STYLE === "true",
+    endpoint: env.S3_ENDPOINT,
+    region: env.S3_REGION,
+    forcePathStyle: env.S3_FORCE_PATH_STYLE === "true",
   }).uploadFile({
     fileName,
     fileType:

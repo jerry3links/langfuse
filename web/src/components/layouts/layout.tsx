@@ -7,10 +7,14 @@ import { env } from "@/src/env.mjs";
 import { Spinner } from "@/src/components/layouts/spinner";
 import { hasProjectAccess } from "@/src/features/rbac/utils/checkProjectAccess";
 import { Toaster } from "@/src/components/ui/sonner";
+import {
+  NOTIFICATIONS,
+  useCheckNotification,
+} from "@/src/features/notifications/checkNotifications";
 import DOMPurify from "dompurify";
 import { ThemeToggle } from "@/src/features/theming/ThemeToggle";
 import { useQueryProjectOrOrganization } from "@/src/features/projects/hooks";
-import { useEntitlements } from "@/src/features/entitlements/hooks";
+import { useOrgEntitlements } from "@/src/features/entitlements/hooks";
 import { useUiCustomization } from "@/src/ee/features/ui-customization/useUiCustomization";
 import { hasOrganizationAccess } from "@/src/features/rbac/utils/checkOrganizationAccess";
 import { ClickhouseAdminToggle } from "@/src/components/layouts/ClickhouseAdminToggle";
@@ -102,10 +106,12 @@ export default function Layout(props: PropsWithChildren) {
     | undefined;
   const session = useSessionWithRetryOnUnauthenticated();
 
+  useCheckNotification(NOTIFICATIONS, session.status === "authenticated");
+
   const enableExperimentalFeatures =
     session.data?.environment.enableExperimentalFeatures ?? false;
 
-  const entitlements = useEntitlements();
+  const entitlements = useOrgEntitlements();
 
   const uiCustomization = useUiCustomization();
 

@@ -1,6 +1,14 @@
 import { z } from "zod";
 import { PromptType } from "@/src/features/prompts/server/utils/validation";
-import { ChatMessageListSchema, TextPromptSchema } from "@langfuse/shared";
+import { ChatMessageDefaultRoleSchema } from "@langfuse/shared";
+
+const ChatMessageSchema = z.object({
+  role: z.union([ChatMessageDefaultRoleSchema, z.string()]), // Users may ingest any string as role via API/SDK
+  content: z.string(),
+});
+
+export const ChatMessageListSchema = z.array(ChatMessageSchema);
+export const TextPromptSchema = z.string().min(1, "Enter a prompt");
 
 const NewPromptBaseSchema = z.object({
   name: z.string().min(1, "Enter a name"),
@@ -31,7 +39,7 @@ export const NewPromptFormSchema = z.union([
 ]);
 export type NewPromptFormSchemaType = z.infer<typeof NewPromptFormSchema>;
 
-export const PromptVariantSchema = z.union([
+export const PromptContentSchema = z.union([
   z.object({
     type: z.literal(PromptType.Chat),
     prompt: ChatMessageListSchema,
@@ -41,7 +49,7 @@ export const PromptVariantSchema = z.union([
     prompt: z.string(),
   }),
 ]);
-export type PromptVariant = z.infer<typeof PromptVariantSchema>;
+export type PromptContentType = z.infer<typeof PromptContentSchema>;
 
 function validateJson(content: string): boolean {
   try {

@@ -263,7 +263,7 @@ async function posthogTelemetry({
       },
     });
 
-    await posthog.shutdown();
+    await posthog.shutdownAsync();
   } catch (error) {
     logger.error(error);
   }

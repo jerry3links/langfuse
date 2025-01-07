@@ -41,12 +41,12 @@ import {
 } from "@/src/features/scores/components/ScoreDetailColumnHelpers";
 import { useTableDateRange } from "@/src/hooks/useTableDateRange";
 import { useDebounce } from "@/src/hooks/useDebounce";
-import { type ScoreAggregate } from "@langfuse/shared";
+import { type ScoreAggregate } from "@/src/features/scores/lib/types";
 import { useIndividualScoreColumns } from "@/src/features/scores/hooks/useIndividualScoreColumns";
 import TagList from "@/src/features/tag/components/TagList";
 import useColumnOrder from "@/src/features/column-visibility/hooks/useColumnOrder";
 import { BatchExportTableButton } from "@/src/components/BatchExportTableButton";
-import { usePlan } from "@/src/features/entitlements/hooks";
+import { useOrganizationPlan } from "@/src/features/entitlements/hooks";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -104,7 +104,7 @@ export default function GenerationsTable({
   omittedFilter = [],
 }: GenerationsTableProps) {
   const capture = usePostHogClientCapture();
-  const plan = usePlan();
+  const plan = useOrganizationPlan();
   const [isExporting, setIsExporting] = useState(false);
   const [searchQuery, setSearchQuery] = useQueryParam(
     "search",

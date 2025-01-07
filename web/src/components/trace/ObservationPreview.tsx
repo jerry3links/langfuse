@@ -28,7 +28,7 @@ import { CommentDrawerButton } from "@/src/features/comments/CommentDrawerButton
 import { cn } from "@/src/utils/tailwind";
 import { NewDatasetItemFromTrace } from "@/src/features/datasets/components/NewDatasetItemFromObservationButton";
 import { CreateNewAnnotationQueueItem } from "@/src/ee/features/annotation-queues/components/CreateNewAnnotationQueueItem";
-import { useHasEntitlement } from "@/src/features/entitlements/hooks";
+import { useHasOrgEntitlement } from "@/src/features/entitlements/hooks";
 import { calculateDisplayTotalCost } from "@/src/components/trace/lib/helpers";
 import { useMemo } from "react";
 import { useIsAuthenticatedAndProjectMember } from "@/src/features/auth/hooks";
@@ -65,7 +65,7 @@ export const ObservationPreview = ({
   const [emptySelectedConfigIds, setEmptySelectedConfigIds] = useLocalStorage<
     string[]
   >("emptySelectedConfigIds", []);
-  const hasEntitlement = useHasEntitlement("annotation-queues");
+  const hasEntitlement = useHasOrgEntitlement("annotation-queues");
   const isAuthenticatedAndProjectMember =
     useIsAuthenticatedAndProjectMember(projectId);
 
@@ -75,20 +75,6 @@ export const ObservationPreview = ({
     projectId: projectId,
     queryClickhouse: useClickhouse(),
   });
-
-  const observationMedia = api.media.getByTraceOrObservationId.useQuery(
-    {
-      traceId: traceId,
-      observationId: currentObservationId,
-      projectId: projectId,
-    },
-    {
-      refetchOnWindowFocus: false,
-      refetchOnMount: false,
-      refetchOnReconnect: false,
-      staleTime: 50 * 60 * 1000, // 50 minutes
-    },
-  );
 
   const preloadedObservation = observations.find(
     (o) => o.id === currentObservationId,
@@ -280,7 +266,6 @@ export const ObservationPreview = ({
                 input={observationWithInputAndOutput.data?.input ?? undefined}
                 output={observationWithInputAndOutput.data?.output ?? undefined}
                 isLoading={observationWithInputAndOutput.isLoading}
-                media={observationMedia.data}
               />
               {preloadedObservation.statusMessage ? (
                 <JSONView
@@ -294,9 +279,6 @@ export const ObservationPreview = ({
                   key={observationWithInputAndOutput.data.id + "-metadata"}
                   title="Metadata"
                   json={observationWithInputAndOutput.data.metadata}
-                  media={observationMedia.data?.filter(
-                    (m) => m.field === "metadata",
-                  )}
                 />
               ) : null}
               {viewType === "detailed" && (

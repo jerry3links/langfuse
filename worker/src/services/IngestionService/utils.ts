@@ -22,16 +22,16 @@ export const convertJsonSchemaToRecord = (
     return record;
   }
 
+  // if it's an object, add each key value pair with a stringified value
   if (typeof jsonSchema === "object") {
     for (const key in jsonSchema) {
-      const value = jsonSchema[key];
-      record[key] = typeof value === "string" ? value : JSON.stringify(value);
+      record[key] = JSON.stringify(jsonSchema[key]);
     }
   }
   return record;
 };
 
-const mergeRecords = (
+export const mergeRecords = (
   record1?: Record<string, string>,
   record2?: Record<string, string>,
 ): Record<string, string> | undefined => {

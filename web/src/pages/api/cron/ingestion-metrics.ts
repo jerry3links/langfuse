@@ -58,7 +58,7 @@ export default async function handler(
         },
       });
 
-    await posthog.shutdown();
+    await posthog.shutdownAsync();
 
     logger.info(
       "Updated ingestion_metrics in PostHog from startTimeframe:",

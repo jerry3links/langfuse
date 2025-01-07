@@ -90,7 +90,6 @@ export type DatePickerWithRangeProps = {
   dateRange?: DashboardDateRange;
   className?: string;
   selectedOption: DashboardDateRangeOptions;
-  disabled?: React.ComponentProps<typeof Calendar>["disabled"];
   setDateRangeAndOption: (
     option: DashboardDateRangeOptions,
     date?: DashboardDateRange,
@@ -102,7 +101,6 @@ export function DatePickerWithRange({
   dateRange,
   selectedOption,
   setDateRangeAndOption,
-  disabled,
 }: DatePickerWithRangeProps) {
   const [internalDateRange, setInternalDateRange] = useState<
     DateRange | undefined
@@ -217,7 +215,6 @@ export function DatePickerWithRange({
             selected={internalDateRange}
             onSelect={onCalendarSelection}
             numberOfMonths={isSmallScreen ? 1 : 2}
-            disabled={disabled}
           />
           {!isSmallScreen && (
             <div className="flex flex-row border-t-2 py-1.5">

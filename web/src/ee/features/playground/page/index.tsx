@@ -4,10 +4,10 @@ import { ResetPlaygroundButton } from "@/src/ee/features/playground/page/compone
 import { SaveToPromptButton } from "@/src/ee/features/playground/page/components/SaveToPromptButton";
 import { PlaygroundProvider } from "@/src/ee/features/playground/page/context";
 import Playground from "@/src/ee/features/playground/page/playground";
-import { useHasEntitlement } from "@/src/features/entitlements/hooks";
+import { useHasOrgEntitlement } from "@/src/features/entitlements/hooks";
 
 export default function PlaygroundPage() {
-  const available = useHasEntitlement("playground");
+  const available = useHasOrgEntitlement("playground");
   if (!available) return null;
   return (
     <PlaygroundProvider>

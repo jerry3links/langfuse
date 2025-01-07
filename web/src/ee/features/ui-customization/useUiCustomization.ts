@@ -1,16 +1,16 @@
-import { useHasEntitlement } from "@/src/features/entitlements/hooks";
+import { useIsEeEnabled } from "@/src/ee/utils/useIsEeEnabled";
 import { api } from "@/src/utils/api";
 
 export const useUiCustomization = () => {
-  const hasEntitlement = useHasEntitlement("self-host-ui-customization");
+  const isEeVersion = useIsEeEnabled();
   const customization = api.uiCustomization.get.useQuery(undefined, {
-    enabled: hasEntitlement,
+    enabled: isEeVersion,
     refetchOnMount: false,
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
   });
 
-  if (!hasEntitlement) return null;
+  if (!isEeVersion) return null;
   return customization.data ?? null;
 };
 

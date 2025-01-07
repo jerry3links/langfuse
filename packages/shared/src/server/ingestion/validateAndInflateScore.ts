@@ -17,7 +17,7 @@ type ValidateAndInflateScoreParams = {
 export async function validateAndInflateScore(
   params: ValidateAndInflateScoreParams,
 ): Promise<Score> {
-  const { body, projectId, scoreId } = params;
+  const { body, projectId } = params;
 
   if (body.configId) {
     const config = await prisma.scoreConfig.findFirst({
@@ -32,22 +32,10 @@ export async function validateAndInflateScore(
         "The configId you provided does not match a valid config in this project",
       );
 
-    // Override some fields in the score body with config fields
-    // We ignore the set fields in the body
-    const bodyWithConfigOverrides = {
-      ...body,
-      name: config.name,
-    };
-
-    validateConfigAgainstBody(
-      bodyWithConfigOverrides,
-      config as ValidatedScoreConfig,
-    );
+    validateConfigAgainstBody(body, config as ValidatedScoreConfig);
 
     return inflateScoreBody({
-      projectId,
-      scoreId,
-      body: bodyWithConfigOverrides,
+      ...params,
       config: config as ValidatedScoreConfig,
     });
   }
@@ -88,7 +76,7 @@ function inflateScoreBody(
   const { body, projectId, scoreId, config } = params;
 
   const relevantDataType = config?.dataType ?? body.dataType;
-  const scoreProps = { source: "API", ...body, id: scoreId, projectId };
+  const scoreProps = { ...body, id: scoreId, projectId, source: "API" };
 
   if (typeof body.value === "number") {
     if (relevantDataType && relevantDataType === ScoreDataType.BOOLEAN) {

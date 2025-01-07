@@ -41,7 +41,6 @@ export function MultiSelectKeyValues<
   items = "items",
   align = "center",
   controlButtons,
-  hideClearButton = false,
 }: {
   title?: string;
   placeholder?: string;
@@ -57,12 +56,11 @@ export function MultiSelectKeyValues<
   items?: string;
   align?: "center" | "end" | "start";
   controlButtons?: React.ReactNode;
-  hideClearButton?: boolean;
 }) {
   const selectedValueKeys = new Set(
     values.map((value) => (typeof value === "string" ? value : value.key)),
   );
-  const showClearItems = selectedValueKeys.size > 0 && !hideClearButton;
+  const showClearItems = selectedValueKeys.size > 0;
 
   function formatFilterValues(): T[] {
     if (values.length > 0 && typeof values[0] === "string") {
@@ -116,7 +114,7 @@ export function MultiSelectKeyValues<
                       <Badge
                         variant="secondary"
                         key={option.key}
-                        className="rounded-sm px-1 font-normal capitalize"
+                        className="rounded-sm px-1 font-normal"
                       >
                         {option.value}
                       </Badge>
@@ -133,67 +131,63 @@ export function MultiSelectKeyValues<
           <CommandList>
             <CommandEmpty>No results found.</CommandEmpty>
             <CommandGroup>
-              {Boolean(options.length) ? (
-                options.map((option) => {
-                  const isSelected = selectedValueKeys.has(
-                    option.key ?? option.value,
-                  );
-                  return (
-                    <CommandItem
-                      key={option.key ?? option.value}
-                      value={option.key ?? option.value}
-                      keywords={[option.value]}
-                      onSelect={(value) => {
-                        if (isSelected) {
-                          selectedValueKeys.delete(value);
-                        } else {
-                          selectedValueKeys.add(value);
-                        }
-                        const filterValues = formatFilterValues();
+              {options.map((option) => {
+                const isSelected = selectedValueKeys.has(
+                  option.key ?? option.value,
+                );
+                return (
+                  <CommandItem
+                    key={option.key ?? option.value}
+                    value={option.key ?? option.value}
+                    keywords={[option.value]}
+                    onSelect={(value) => {
+                      if (isSelected) {
+                        selectedValueKeys.delete(value);
+                      } else {
+                        selectedValueKeys.add(value);
+                      }
+                      const filterValues = formatFilterValues();
 
-                        onValueChange(
-                          filterValues.length ? filterValues : [],
-                          value,
-                          selectedValueKeys,
-                        );
-                      }}
-                      disabled={option.disabled}
+                      onValueChange(
+                        filterValues.length ? filterValues : [],
+                        value,
+                        selectedValueKeys,
+                      );
+                    }}
+                    disabled={option.disabled}
+                  >
+                    <div
+                      className={cn(
+                        "mr-2 flex h-4 w-4 items-center justify-center rounded-sm border border-primary",
+                        isSelected
+                          ? "bg-primary text-primary-foreground"
+                          : "opacity-50 [&_svg]:invisible",
+                        option.disabled ? "opacity-50" : null,
+                      )}
                     >
-                      <div
-                        className={cn(
-                          "mr-2 flex h-4 w-4 items-center justify-center rounded-sm border border-primary",
-                          isSelected
-                            ? "bg-primary text-primary-foreground"
-                            : "opacity-50 [&_svg]:invisible",
-                          option.disabled ? "opacity-50" : null,
-                        )}
-                      >
-                        <Check className="h-4 w-4" />
+                      <Check className="h-4 w-4" />
+                    </div>
+                    <span
+                      className={cn(
+                        "overflow-x-scroll",
+                        option.isArchived ? "text-foreground/50" : "",
+                      )}
+                    >
+                      {option.value}
+                    </span>
+                    {option.isArchived ? (
+                      <div className="ml-1 mt-1 flex h-4 w-4">
+                        <Archive className="h-4 w-4 text-foreground/50"></Archive>
                       </div>
-                      <span
-                        className={cn(
-                          "overflow-x-scroll capitalize",
-                          option.isArchived ? "text-foreground/50" : "",
-                        )}
-                      >
-                        {option.value}
+                    ) : null}
+                    {option.count !== undefined ? (
+                      <span className="ml-auto flex h-4 w-4 items-center justify-center pl-1 font-mono text-xs">
+                        {option.count}
                       </span>
-                      {option.isArchived ? (
-                        <div className="ml-1 mt-1 flex h-4 w-4">
-                          <Archive className="h-4 w-4 text-foreground/50"></Archive>
-                        </div>
-                      ) : null}
-                      {option.count !== undefined ? (
-                        <span className="ml-auto flex h-4 w-4 items-center justify-center pl-1 font-mono text-xs">
-                          {option.count}
-                        </span>
-                      ) : null}
-                    </CommandItem>
-                  );
-                })
-              ) : (
-                <CommandItem disabled>No options found.</CommandItem>
-              )}
+                    ) : null}
+                  </CommandItem>
+                );
+              })}
             </CommandGroup>
             {controlButtons || showClearItems ? (
               <>

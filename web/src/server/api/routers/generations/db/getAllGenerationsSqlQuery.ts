@@ -4,7 +4,7 @@ import { prisma } from "@langfuse/shared/src/db";
 import { type GetAllGenerationsInput } from "../getAllQueries";
 import {
   createGenerationsQuery,
-  getObservationsTableWithModelData,
+  getObservationsTable,
   getScoresForObservations,
   parseGetAllGenerationsInput,
   traceException,
@@ -27,11 +27,10 @@ export async function getAllGenerations({
   let generations: FullObservations | IOAndMetadataOmittedObservations;
   let scores: Score[] = [];
   if (queryClickhouse) {
-    generations = await getObservationsTableWithModelData({
+    generations = await getObservationsTable({
       projectId: input.projectId,
       filter: input.filter,
       orderBy: input.orderBy,
-      searchQuery: input.searchQuery ?? undefined,
       selectIOAndMetadata: selectIOAndMetadata,
       offset: input.page * input.limit,
       limit: input.limit,

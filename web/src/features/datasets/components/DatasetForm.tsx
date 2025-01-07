@@ -16,7 +16,6 @@ import { Input } from "@/src/components/ui/input";
 import { JsonEditor } from "@/src/components/json-editor";
 import { type Prisma } from "@langfuse/shared";
 import { usePostHogClientCapture } from "@/src/features/posthog-analytics/usePostHogClientCapture";
-import { Label } from "@/src/components/ui/label";
 
 interface BaseDatasetFormProps {
   mode: "create" | "update" | "delete";
@@ -31,7 +30,6 @@ interface CreateDatasetFormProps extends BaseDatasetFormProps {
 
 interface DeleteDatasetFormProps extends BaseDatasetFormProps {
   mode: "delete";
-  datasetName: string;
   datasetId: string;
 }
 
@@ -76,7 +74,6 @@ const formSchema = z.object({
 export const DatasetForm = (props: DatasetFormProps) => {
   const [formError, setFormError] = useState<string | null>(null);
   const capture = usePostHogClientCapture();
-  const [deleteConfirmationInput, setDeleteConfirmationInput] = useState("");
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues:
@@ -142,17 +139,8 @@ export const DatasetForm = (props: DatasetFormProps) => {
     }
   }
 
-  const handleDelete = (e: React.FormEvent) => {
-    e.preventDefault();
-
-    // helps with type safety
+  const handleDelete = () => {
     if (props.mode !== "delete") return;
-
-    if (deleteConfirmationInput !== props.datasetName) {
-      setFormError("Please type the correct dataset name to confirm deletion");
-      return;
-    }
-
     capture("datasets:delete_form_submit");
     deleteMutation
       .mutateAsync({
@@ -174,22 +162,12 @@ export const DatasetForm = (props: DatasetFormProps) => {
     <div>
       <Form {...form}>
         <form
+          // eslint-disable-next-line @typescript-eslint/no-misused-promises
           onSubmit={
             props.mode === "delete" ? handleDelete : form.handleSubmit(onSubmit)
           }
         >
-          {props.mode === "delete" ? (
-            <div className="mb-8 grid w-full gap-1.5">
-              <Label htmlFor="delete-confirmation">
-                Type &quot;{props.datasetName}&quot; to confirm deletion
-              </Label>
-              <Input
-                id="delete-confirmation"
-                value={deleteConfirmationInput}
-                onChange={(e) => setDeleteConfirmationInput(e.target.value)}
-              />
-            </div>
-          ) : (
+          {props.mode !== "delete" && (
             <div className="mb-8 space-y-6">
               <FormField
                 control={form.control}
@@ -240,10 +218,7 @@ export const DatasetForm = (props: DatasetFormProps) => {
           <Button
             type="submit"
             variant={props.mode === "delete" ? "destructive" : "default"}
-            loading={
-              (props.mode === "create" && createMutation.isLoading) ||
-              (props.mode === "delete" && deleteMutation.isLoading)
-            }
+            loading={props.mode === "create" && createMutation.isLoading}
             className="w-full"
           >
             {props.mode === "create"
@@ -255,7 +230,7 @@ export const DatasetForm = (props: DatasetFormProps) => {
         </form>
       </Form>
       {formError && (
-        <p className="mt-4 text-center text-sm text-red-500">
+        <p className="text-red text-center">
           <span className="font-bold">Error:</span> {formError}
         </p>
       )}

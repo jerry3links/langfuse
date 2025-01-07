@@ -2,7 +2,7 @@ import { UiColumnMapping } from "./types";
 
 export const tracesTableUiColumnDefinitions: UiColumnMapping[] = [
   {
-    uiTableName: "⭐️",
+    uiTableName: "bookmarked",
     uiTableId: "bookmarked",
     clickhouseTableName: "traces",
     clickhouseSelect: "bookmarked",
@@ -71,61 +71,49 @@ export const tracesTableUiColumnDefinitions: UiColumnMapping[] = [
   {
     uiTableName: "Input Tokens",
     uiTableId: "inputTokens",
-    clickhouseTableName: "observations",
+    clickhouseTableName: "traces",
     clickhouseSelect:
       "if(mapExists((k, v) -> (k = 'input'), usage_details), usage_details['input'], NULL)",
   },
   {
     uiTableName: "Output Tokens",
     uiTableId: "outputTokens",
-    clickhouseTableName: "observations",
+    clickhouseTableName: "traces",
     clickhouseSelect:
       "if(mapExists((k, v) -> (k = 'output'), usage_details), usage_details['output'], NULL)",
   },
   {
     uiTableName: "Total Tokens",
     uiTableId: "totalTokens",
-    clickhouseTableName: "observations",
+    clickhouseTableName: "traces",
     clickhouseSelect:
       "if(mapExists((k, v) -> (k = 'total'), usage_details), usage_details['total'], NULL)",
-  },
-  {
-    uiTableName: "Usage",
-    uiTableId: "usage",
-    clickhouseTableName: "observations",
-    clickhouseSelect:
-      "if(mapExists((k, v) -> (k = 'total'), usage_details), usage_details['total'], NULL)",
-  },
-  {
-    uiTableName: "Scores",
-    uiTableId: "scores",
-    clickhouseTableName: "scores",
-    clickhouseSelect: "s.scores_avg",
   },
   {
     uiTableName: "Latency (s)",
     uiTableId: "latency",
-    clickhouseTableName: "observations",
-    clickhouseSelect: "latency_milliseconds / 1000",
-    // If we use the default of Decimal64(12), we cannot filter for more than ~40min due to an overflow
-    clickhouseTypeOverwrite: "Decimal64(3)",
+    clickhouseTableName: "traces",
+    clickhouseSelect: "latency",
   },
   {
     uiTableName: "Input Cost ($)",
     uiTableId: "inputCost",
-    clickhouseTableName: "observations",
-    clickhouseSelect: "cost_details['input']",
+    clickhouseTableName: "traces",
+    clickhouseSelect:
+      "if(mapExists((k, v) -> (k = 'input'), cost_details), usage_details['input'], NULL)",
   },
   {
     uiTableName: "Output Cost ($)",
     uiTableId: "outputCost",
-    clickhouseTableName: "observations",
-    clickhouseSelect: "cost_details['output']",
+    clickhouseTableName: "traces",
+    clickhouseSelect:
+      "if(mapExists((k, v) -> (k = 'output'), cost_details), usage_details['output'], NULL)",
   },
   {
     uiTableName: "Total Cost ($)",
     uiTableId: "totalCost",
-    clickhouseTableName: "observations",
-    clickhouseSelect: "cost_details['total']",
+    clickhouseTableName: "traces",
+    clickhouseSelect:
+      "if(mapExists((k, v) -> (k = 'total'), cost_details), usage_details['total'], NULL)",
   },
 ];

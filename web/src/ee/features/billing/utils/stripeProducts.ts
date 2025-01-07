@@ -24,7 +24,7 @@ export const stripeProducts: StripeProduct[] = [
     checkout: {
       title: "Pro",
       description:
-        "For serious projects. Includes access to full history, higher usage and access to features.",
+        "For serious projects. Includes access to full history and higher usage.",
       price: "$59 / month + $10/100k observations",
     },
   },

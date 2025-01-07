@@ -13,7 +13,7 @@ import { type ReactNode, useEffect } from "react";
 import { useQueryParams, withDefault, NumberParam } from "use-query-params";
 import { z } from "zod";
 
-export type EvaluatorDataRow = {
+export type EvalConfigRow = {
   id: string;
   status: string;
   createdAt: string;
@@ -23,7 +23,6 @@ export type EvaluatorDataRow = {
     version: number;
   };
   scoreName: string;
-  target: string; // "trace" or "dataset"
   filter: FilterState;
 };
 
@@ -47,19 +46,17 @@ export default function EvaluatorTable({
   });
   const totalCount = evaluators.data?.totalCount ?? null;
 
-  const datasets = api.datasets.allDatasetMeta.useQuery({ projectId });
-
   useEffect(() => {
     if (evaluators.isSuccess) {
       setDetailPageList(
         "evals",
-        evaluators.data.configs.map((evaluator) => ({ id: evaluator.id })),
+        evaluators.data.configs.map((evaluator) => evaluator.id),
       );
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [evaluators.isSuccess, evaluators.data]);
 
-  const columnHelper = createColumnHelper<EvaluatorDataRow>();
+  const columnHelper = createColumnHelper<EvalConfigRow>();
   const columns = [
     columnHelper.accessor("id", {
       header: "Id",
@@ -104,11 +101,6 @@ export default function EvaluatorTable({
         );
       },
     }),
-    columnHelper.accessor("target", {
-      id: "target",
-      header: "Target",
-      size: 150,
-    }),
     columnHelper.accessor("scoreName", {
       id: "scoreName",
       header: "Score Name",
@@ -119,41 +111,22 @@ export default function EvaluatorTable({
       header: "Filter",
       size: 200,
       cell: (row) => {
-        const filterState = row.getValue();
-
-        // FIX: Temporary workaround: Used to display a different value than the actual value since multiSelect doesn't support key-value pairs
-        const newFilterState = filterState.map((filter) => {
-          if (filter.type === "stringOptions" && filter.column === "Dataset") {
-            return {
-              ...filter,
-              value: filter.value.map(
-                (datasetId) =>
-                  datasets.data?.find((d) => d.id === datasetId)?.name ??
-                  datasetId,
-              ),
-            };
-          }
-          return filter;
-        });
-
+        const node = row.getValue();
         return (
           <div className="flex h-full overflow-x-auto">
-            <InlineFilterState filterState={newFilterState} />
+            <InlineFilterState filterState={node} />
           </div>
         );
       },
     }),
-  ] as LangfuseColumnDef<EvaluatorDataRow>[];
+  ] as LangfuseColumnDef<EvalConfigRow>[];
 
   const [columnVisibility, setColumnVisibility] =
-    useColumnVisibility<EvaluatorDataRow>(
-      "evalConfigColumnVisibility",
-      columns,
-    );
+    useColumnVisibility<EvalConfigRow>("evalConfigColumnVisibility", columns);
 
   const convertToTableRow = (
     jobConfig: RouterOutputs["evals"]["allConfigs"]["configs"][number],
-  ): EvaluatorDataRow => {
+  ): EvalConfigRow => {
     return {
       id: jobConfig.id,
       status: jobConfig.status,
@@ -166,7 +139,6 @@ export default function EvaluatorTable({
           }
         : undefined,
       scoreName: jobConfig.scoreName,
-      target: jobConfig.targetObject,
       filter: z.array(singleFilter).parse(jobConfig.filter),
     };
   };

@@ -5,10 +5,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/src/components/ui/tooltip";
-import {
-  type ListEntry,
-  useDetailPageLists,
-} from "@/src/features/navigate-detail-pages/context";
+import { useDetailPageLists } from "@/src/features/navigate-detail-pages/context";
 import { usePostHogClientCapture } from "@/src/features/posthog-analytics/usePostHogClientCapture";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { useRouter } from "next/router";
@@ -16,21 +13,18 @@ import { useEffect } from "react";
 
 export const DetailPageNav = (props: {
   currentId: string;
-  path: (entry: ListEntry) => string;
+  path: (id: string) => string;
   listKey: string;
 }) => {
   const { detailPagelists } = useDetailPageLists();
-  const entries = detailPagelists[props.listKey] ?? [];
+  const ids = detailPagelists[props.listKey] ?? [];
 
   const capture = usePostHogClientCapture();
   const router = useRouter();
-  const currentIndex = entries.findIndex(
-    (entry) => entry.id === props.currentId,
-  );
-  const previousPageEntry =
-    currentIndex > 0 ? entries[currentIndex - 1] : undefined;
-  const nextPageEntry =
-    currentIndex < entries.length - 1 ? entries[currentIndex + 1] : undefined;
+  const currentIndex = ids.findIndex((id) => id === props.currentId);
+  const previousPageId = currentIndex > 0 ? ids[currentIndex - 1] : undefined;
+  const nextPageId =
+    currentIndex < ids.length - 1 ? ids[currentIndex + 1] : undefined;
 
   // keyboard shortcuts for buttons k and j
   useEffect(() => {
@@ -45,27 +39,17 @@ export const DetailPageNav = (props: {
         return;
       }
 
-      if (event.key === "k" && previousPageEntry) {
-        void router.push(
-          props.path({
-            id: encodeURIComponent(previousPageEntry.id),
-            params: previousPageEntry.params,
-          }),
-        );
-      } else if (event.key === "j" && nextPageEntry) {
-        void router.push(
-          props.path({
-            id: encodeURIComponent(nextPageEntry.id),
-            params: nextPageEntry.params,
-          }),
-        );
+      if (event.key === "k" && previousPageId) {
+        void router.push(props.path(encodeURIComponent(previousPageId)));
+      } else if (event.key === "j" && nextPageId) {
+        void router.push(props.path(encodeURIComponent(nextPageId)));
       }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [previousPageEntry, nextPageEntry, router, props]);
+  }, [previousPageId, nextPageId, router, props]);
 
-  if (entries.length > 1)
+  if (ids.length > 1)
     return (
       <div className="flex flex-row gap-2">
         <Tooltip>
@@ -73,15 +57,12 @@ export const DetailPageNav = (props: {
             <Button
               variant="outline"
               size="icon"
-              disabled={!previousPageEntry}
+              disabled={!previousPageId}
               onClick={() => {
-                if (previousPageEntry) {
+                if (previousPageId) {
                   capture("navigate_detail_pages:button_click_prev_or_next");
                   void router.push(
-                    props.path({
-                      id: encodeURIComponent(previousPageEntry.id),
-                      params: previousPageEntry.params,
-                    }),
+                    props.path(encodeURIComponent(previousPageId)),
                   );
                 }
               }}
@@ -102,16 +83,11 @@ export const DetailPageNav = (props: {
             <Button
               variant="outline"
               size="icon"
-              disabled={!nextPageEntry}
+              disabled={!nextPageId}
               onClick={() => {
-                if (nextPageEntry) {
+                if (nextPageId) {
                   capture("navigate_detail_pages:button_click_prev_or_next");
-                  void router.push(
-                    props.path({
-                      id: encodeURIComponent(nextPageEntry.id),
-                      params: nextPageEntry.params,
-                    }),
-                  );
+                  void router.push(props.path(encodeURIComponent(nextPageId)));
                 }
               }}
             >

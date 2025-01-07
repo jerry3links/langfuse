@@ -45,7 +45,7 @@ export default async function chatCompletionHandler(req: NextRequest) {
       );
     }
 
-    const { completion } = await fetchLLMCompletion({
+    const stream = await fetchLLMCompletion({
       messages,
       modelParams,
       streaming: true,
@@ -55,7 +55,7 @@ export default async function chatCompletionHandler(req: NextRequest) {
       config: parsedKey.data.config,
     });
 
-    return new StreamingTextResponse(completion);
+    return new StreamingTextResponse(stream);
   } catch (err) {
     logger.error("Failed to handle chat completion", err);
 

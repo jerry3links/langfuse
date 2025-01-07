@@ -246,13 +246,7 @@ export function Trace(props: {
   );
 }
 
-export function TracePage({
-  traceId,
-  timestamp,
-}: {
-  traceId: string;
-  timestamp?: Date;
-}) {
+export function TracePage({ traceId }: { traceId: string }) {
   const capture = usePostHogClientCapture();
   const router = useRouter();
   const utils = api.useUtils();
@@ -262,17 +256,12 @@ export function TracePage({
   const trace = api.traces.byIdWithObservationsAndScores.useQuery(
     {
       traceId,
-      timestamp,
       projectId: router.query.projectId as string,
       queryClickhouse: useClickhouse(),
     },
     {
       retry(failureCount, error) {
-        if (
-          error.data?.code === "UNAUTHORIZED" ||
-          error.data?.code === "NOT_FOUND"
-        )
-          return false;
+        if (error.data?.code === "UNAUTHORIZED") return false;
         return failureCount < 3;
       },
     },
@@ -313,21 +302,7 @@ export function TracePage({
 
   if (trace.error?.data?.code === "UNAUTHORIZED")
     return <ErrorPage message="You do not have access to this trace." />;
-
-  if (trace.error?.data?.code === "NOT_FOUND")
-    return (
-      <ErrorPage
-        title="Trace not found"
-        message="The trace is either still being processed or has been deleted."
-        additionalButton={{
-          label: "Retry",
-          onClick: () => void window.location.reload(),
-        }}
-      />
-    );
-
   if (!trace.data) return <div>loading...</div>;
-
   return (
     <FullScreenPage>
       <Header
@@ -353,7 +328,7 @@ export function TracePage({
             />
             <DetailPageNav
               currentId={traceId}
-              path={(entry) => {
+              path={(id) => {
                 const { view, display, projectId } = router.query;
                 const queryParams = new URLSearchParams({
                   ...(typeof view === "string" ? { view } : {}),
@@ -362,13 +337,7 @@ export function TracePage({
                 const queryParamString = Boolean(queryParams.size)
                   ? `?${queryParams.toString()}`
                   : "";
-
-                const timestamp =
-                  entry.params && entry.params.timestamp
-                    ? encodeURIComponent(entry.params.timestamp)
-                    : undefined;
-
-                return `/project/${projectId as string}/traces/${entry.id}${queryParamString}${timestamp ? `?timestamp=${timestamp}` : ""}`;
+                return `/project/${projectId as string}/traces/${id}${queryParamString}`;
               }}
               listKey="traces"
             />

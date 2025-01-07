@@ -16,7 +16,6 @@ export enum LLMAdapter {
   OpenAI = "openai",
   Azure = "azure",
   Bedrock = "bedrock",
-  VertexAI = "vertex-ai",
 }
 
 export enum ChatMessageRole {
@@ -26,20 +25,6 @@ export enum ChatMessageRole {
 }
 
 export const ChatMessageDefaultRoleSchema = z.nativeEnum(ChatMessageRole);
-
-const ChatMessageSchema = z.object({
-  role: z.union([ChatMessageDefaultRoleSchema, z.string()]), // Users may ingest any string as role via API/SDK
-  content: z.string(),
-});
-
-export const ChatMessageListSchema = z.array(ChatMessageSchema);
-export const TextPromptSchema = z.string().min(1, "Enter a prompt");
-
-export const PromptContentSchema = z.union([
-  ChatMessageListSchema,
-  TextPromptSchema,
-]);
-export type PromptContent = z.infer<typeof PromptContentSchema>;
 
 export type ModelParams = {
   provider: string;
@@ -63,17 +48,6 @@ export const ZodModelConfig = z.object({
   temperature: z.coerce.number().optional(),
   top_p: z.coerce.number().optional(),
 });
-
-// Experiment config
-export const ExperimentMetadataSchema = z
-  .object({
-    prompt_id: z.string(),
-    provider: z.string(),
-    model: z.string(),
-    model_params: ZodModelConfig,
-  })
-  .strict();
-export type ExperimentMetadata = z.infer<typeof ExperimentMetadataSchema>;
 
 // NOTE: Update docs page when changing this! https://langfuse.com/docs/playground#openai-playground--anthropic-playground
 export const openAIModels = [
@@ -115,18 +89,10 @@ export const anthropicModels = [
   "claude-instant-1.2",
 ] as const;
 
-export const vertexAIModels = [
-  "gemini-1.5-pro",
-  "gemini-1.5-flash",
-  "gemini-1.0-pro",
-] as const;
-
 export type AnthropicModel = (typeof anthropicModels)[number];
-export type VertexAIModel = (typeof vertexAIModels)[number];
 export const supportedModels = {
   [LLMAdapter.Anthropic]: anthropicModels,
   [LLMAdapter.OpenAI]: openAIModels,
-  [LLMAdapter.VertexAI]: vertexAIModels,
   [LLMAdapter.Azure]: [],
   [LLMAdapter.Bedrock]: [],
 } as const;

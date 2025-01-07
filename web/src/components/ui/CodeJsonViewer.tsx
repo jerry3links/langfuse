@@ -10,8 +10,6 @@ import { useTheme } from "next-themes";
 import { BsMarkdown } from "react-icons/bs";
 import { usePostHogClientCapture } from "@/src/features/posthog-analytics/usePostHogClientCapture";
 import { useMarkdownContext } from "@/src/features/theming/useMarkdownContext";
-import { type MediaReturnType } from "@/src/features/media/validation";
-import { LangfuseMediaView } from "@/src/components/ui/LangfuseMediaView";
 
 export function JSONView(props: {
   canEnableMarkdown?: boolean;
@@ -21,7 +19,6 @@ export function JSONView(props: {
   isLoading?: boolean;
   codeClassName?: string;
   collapseStringsAfterLength?: number | null;
-  media?: MediaReturnType[];
 }) {
   // some users ingest stringified json nested in json, parse it
   const [isCopied, setIsCopied] = useState(false);
@@ -33,7 +30,7 @@ export function JSONView(props: {
   const collapseStringsAfterLength =
     props.collapseStringsAfterLength === null
       ? 100_000_000 // if null, show all (100M chars)
-      : (props.collapseStringsAfterLength ?? 500);
+      : props.collapseStringsAfterLength ?? 500;
 
   const handleCopy = () => {
     setIsCopied(true);
@@ -118,22 +115,6 @@ export function JSONView(props: {
           />
         )}
       </div>
-      {props.media && props.media.length > 0 && (
-        <>
-          <div className="mx-3 border-t px-2 py-1 text-xs text-muted-foreground">
-            Media
-          </div>
-          <div className="flex flex-wrap gap-2 p-4 pt-1">
-            {props.media.map((m) => (
-              <LangfuseMediaView
-                mediaAPIReturnValue={m}
-                asFileIcon={true}
-                key={m.mediaId}
-              />
-            ))}
-          </div>
-        </>
-      )}
     </div>
   );
 }
@@ -157,7 +138,7 @@ export function CodeView(props: {
   const handleShowAll = () => setCollapsed(!isCollapsed);
 
   return (
-    <div className={cn("max-w-full rounded-md border", props.className)}>
+    <div className={cn("max-w-full rounded-md border ", props.className)}>
       {props.title ? (
         <div className="border-b px-3 py-1 text-xs font-medium">
           {props.title}
@@ -229,7 +210,7 @@ export const IOTableCell = ({
         <JSONView
           json={stringifyJsonNode(data)}
           className={cn(
-            "h-full w-full self-stretch overflow-y-auto rounded-sm",
+            "h-full w-full self-stretch overflow-y-auto rounded-sm ",
             className,
           )}
           codeClassName="py-1 px-2"

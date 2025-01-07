@@ -13,15 +13,10 @@ export const ErrorPage = ({
 }: {
   title?: string;
   message: string;
-  additionalButton?:
-    | {
-        label: string;
-        href: string;
-      }
-    | {
-        label: string;
-        onClick: () => void;
-      };
+  additionalButton?: {
+    label: string;
+    href: string;
+  };
 }) => {
   const session = useSession();
   const router = useRouter();
@@ -45,15 +40,9 @@ export const ErrorPage = ({
           </Button>
         ) : null}
         {additionalButton ? (
-          "onClick" in additionalButton ? (
-            <Button variant="secondary" onClick={additionalButton.onClick}>
-              {additionalButton.label}
-            </Button>
-          ) : (
-            <Button variant="secondary" asChild>
-              <Link href={additionalButton.href}>{additionalButton.label}</Link>
-            </Button>
-          )
+          <Button variant="secondary" asChild>
+            <Link href={additionalButton.href}>{additionalButton.label}</Link>
+          </Button>
         ) : null}
       </div>
     </div>

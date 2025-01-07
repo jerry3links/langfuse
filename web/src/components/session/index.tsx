@@ -18,7 +18,6 @@ import { Button } from "@/src/components/ui/button";
 import useLocalStorage from "@/src/components/useLocalStorage";
 import { CommentDrawerButton } from "@/src/features/comments/CommentDrawerButton";
 import { ScrollScreenPage } from "@/src/components/layouts/scroll-screen-page";
-import { useClickhouse } from "@/src/components/layouts/ClickhouseAdminToggle";
 
 // some projects have thousands of traces in a sessions, paginate to avoid rendering all at once
 const PAGE_SIZE = 50;
@@ -33,15 +32,10 @@ export const SessionPage: React.FC<{
     {
       sessionId,
       projectId: projectId,
-      queryClickhouse: useClickhouse(),
     },
     {
       retry(failureCount, error) {
-        if (
-          error.data?.code === "UNAUTHORIZED" ||
-          error.data?.code === "NOT_FOUND"
-        )
-          return false;
+        if (error.data?.code === "UNAUTHORIZED") return false;
         return failureCount < 3;
       },
     },
@@ -50,7 +44,7 @@ export const SessionPage: React.FC<{
     if (session.isSuccess) {
       setDetailPageList(
         "traces",
-        session.data.traces.map((t) => ({ id: t.id })),
+        session.data.traces.map((t) => t.id),
       );
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -71,18 +65,6 @@ export const SessionPage: React.FC<{
 
   if (session.error?.data?.code === "UNAUTHORIZED")
     return <ErrorPage message="You do not have access to this session." />;
-
-  if (session.error?.data?.code === "NOT_FOUND")
-    return (
-      <ErrorPage
-        title="Session not found"
-        message="The session is either still being processed or has been deleted."
-        additionalButton={{
-          label: "Retry",
-          onClick: () => void window.location.reload(),
-        }}
-      />
-    );
 
   return (
     <ScrollScreenPage>
@@ -111,8 +93,8 @@ export const SessionPage: React.FC<{
           <DetailPageNav
             key="nav"
             currentId={encodeURIComponent(sessionId)}
-            path={(entry) =>
-              `/project/${projectId}/sessions/${encodeURIComponent(entry.id)}`
+            path={(id) =>
+              `/project/${projectId}/sessions/${encodeURIComponent(id)}`
             }
             listKey="sessions"
           />,
@@ -134,7 +116,7 @@ export const SessionPage: React.FC<{
               userId ?? "",
             )}`}
           >
-            <Badge className="max-w-[300px] truncate">User ID: {userId}</Badge>
+            <Badge>User ID: {userId}</Badge>
           </Link>
         ))}
         <Badge variant="outline">Traces: {session.data?.traces.length}</Badge>
@@ -150,9 +132,7 @@ export const SessionPage: React.FC<{
             className="group grid gap-3 border-border p-2 shadow-none hover:border-ring md:grid-cols-3"
             key={trace.id}
           >
-            <div className="col-span-2 overflow-hidden">
-              <SessionIO traceId={trace.id} projectId={projectId} />
-            </div>
+            <SessionIO traceId={trace.id} projectId={projectId} />
             <div className="-mt-1 p-1 opacity-50 transition-opacity group-hover:opacity-100">
               <Link
                 href={`/project/${projectId}/traces/${trace.id}`}
@@ -205,7 +185,7 @@ const SessionIO = ({
   projectId: string;
 }) => {
   const trace = api.traces.byId.useQuery(
-    { traceId, projectId, queryClickhouse: useClickhouse() },
+    { traceId, projectId },
     {
       enabled: typeof traceId === "string",
       trpc: {
@@ -213,11 +193,11 @@ const SessionIO = ({
           skipBatch: true,
         },
       },
-      refetchOnMount: false,
+      refetchOnMount: false, // prevents refetching loops
     },
   );
   return (
-    <div className="flex w-full flex-col gap-2 overflow-hidden p-0">
+    <div className="col-span-2 flex flex-col gap-2 p-0">
       {!trace.data ? (
         <JsonSkeleton
           className="h-full w-full overflow-hidden px-2 py-1"

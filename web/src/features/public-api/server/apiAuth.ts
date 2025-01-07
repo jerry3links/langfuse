@@ -16,7 +16,7 @@ import {
 } from "@langfuse/shared/src/db";
 import { isPrismaException } from "@/src/utils/exceptions";
 import { type Redis } from "ioredis";
-import { getOrganizationPlanServerSide } from "@/src/features/entitlements/server/getPlan";
+import { getOrganizationPlan } from "@/src/features/entitlements/server/getOrganizationPlan";
 import { API_KEY_NON_EXISTENT } from "@langfuse/shared/src/server";
 import { type z } from "zod";
 import { CloudConfigSchema, isPlan } from "@langfuse/shared";
@@ -211,7 +211,7 @@ export class ApiAuthService {
             projectId: dbKey.projectId,
             accessLevel: "scores",
             orgId: dbKey.project.organization.id,
-            plan: getOrganizationPlanServerSide(cloudConfig),
+            plan: getOrganizationPlan(cloudConfig),
             rateLimitOverrides: cloudConfig?.rateLimitOverrides ?? [],
           },
         };
@@ -342,11 +342,7 @@ export class ApiAuthService {
       }
 
       if (!parsedApiKey.success) {
-        logger.error(
-          "Failed to parse API key from Redis, deleting existing key from cache",
-          parsedApiKey.error,
-        );
-        await this.redis.del(this.createRedisKey(hash));
+        logger.error("Failed to parse API key from Redis:", parsedApiKey.error);
       }
       return null;
     } catch (error: unknown) {
@@ -388,7 +384,7 @@ export const convertToRedisRepresentation = (
     ...apiKeyAndOrganisation,
     createdAt: apiKeyAndOrganisation.createdAt?.toISOString(),
     orgId,
-    plan: getOrganizationPlanServerSide(parsedCloudConfig),
+    plan: getOrganizationPlan(parsedCloudConfig),
     rateLimitOverrides: parsedCloudConfig?.rateLimitOverrides,
   });
 

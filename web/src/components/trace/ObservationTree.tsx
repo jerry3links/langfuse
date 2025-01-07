@@ -19,10 +19,7 @@ import { CommentCountIcon } from "@/src/features/comments/CommentCountIcon";
 import { usdFormatter } from "@/src/utils/numbers";
 import Decimal from "decimal.js";
 
-export const ObservationTree = ({
-  showExpandControls = true,
-  ...props
-}: {
+export const ObservationTree = (props: {
   observations: ObservationReturnType[];
   collapsedObservations: string[];
   toggleCollapsedObservation: (id: string) => void;
@@ -38,7 +35,6 @@ export const ObservationTree = ({
   observationCommentCounts?: Map<string, number>;
   traceCommentCounts?: Map<string, number>;
   className?: string;
-  showExpandControls?: boolean;
 }) => {
   const nestedObservations = useMemo(
     () => nestObservations(props.observations),
@@ -63,7 +59,6 @@ export const ObservationTree = ({
         showMetrics={props.showMetrics}
         showScores={props.showScores}
         totalCost={totalCost}
-        showExpandControls={showExpandControls}
       />
       <ObservationTreeNode
         observations={nestedObservations}
@@ -97,7 +92,6 @@ const ObservationTreeTraceNode = (props: {
   showMetrics?: boolean;
   showScores?: boolean;
   totalCost?: Decimal;
-  showExpandControls?: boolean;
 }) => {
   return (
     <div
@@ -118,26 +112,24 @@ const ObservationTreeTraceNode = (props: {
         {props.comments ? (
           <CommentCountIcon count={props.comments.get(props.trace.id)} />
         ) : null}
-        {props.showExpandControls && (
-          <div className="flex flex-1 justify-end">
-            <Button
-              onClick={(ev) => (ev.stopPropagation(), props.expandAll())}
-              size="xs"
-              variant="ghost"
-              title="Expand all"
-            >
-              <PlusCircleIcon className="h-4 w-4" />
-            </Button>
-            <Button
-              onClick={(ev) => (ev.stopPropagation(), props.collapseAll())}
-              size="xs"
-              variant="ghost"
-              title="Collapse all"
-            >
-              <MinusCircle className="h-4 w-4" />
-            </Button>
-          </div>
-        )}
+        <div className="flex flex-1 justify-end">
+          <Button
+            onClick={(ev) => (ev.stopPropagation(), props.expandAll())}
+            size="xs"
+            variant="ghost"
+            title="Expand all"
+          >
+            <PlusCircleIcon className="h-4 w-4" />
+          </Button>
+          <Button
+            onClick={(ev) => (ev.stopPropagation(), props.collapseAll())}
+            size="xs"
+            variant="ghost"
+            title="Collapse all"
+          >
+            <MinusCircle className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
 
       {props.showMetrics && (

@@ -6,7 +6,7 @@ import {
 import {
   type CategoricalAggregate,
   type NumericAggregate,
-} from "@langfuse/shared";
+} from "@/src/features/scores/lib/types";
 
 import { numberFormatter } from "@/src/utils/numbers";
 import { cn } from "@/src/utils/tailwind";

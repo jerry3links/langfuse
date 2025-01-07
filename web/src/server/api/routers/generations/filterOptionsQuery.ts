@@ -17,7 +17,8 @@ import {
   getTracesGroupedByName,
   getTracesGroupedByTags,
 } from "@langfuse/shared/src/server";
-import { measureAndReturnApi } from "@/src/server/utils/checkClickhouseAccess";
+import { isClickhouseEligible } from "@/src/server/utils/checkClickhouseAccess";
+import { TRPCError } from "@trpc/server";
 
 export const filterOptionsQuery = protectedProjectProcedure
   .input(
@@ -28,6 +29,13 @@ export const filterOptionsQuery = protectedProjectProcedure
     }),
   )
   .query(async ({ input, ctx }) => {
+    if (input.queryClickhouse && !isClickhouseEligible(ctx.session.user)) {
+      throw new TRPCError({
+        code: "UNAUTHORIZED",
+        message: "Not eligible to query clickhouse",
+      });
+    }
+
     const { startTimeFilter } = input;
     const prismaStartTimeFilter = startTimeFilter
       ? datetimeFilterToPrisma(startTimeFilter)
@@ -64,15 +72,15 @@ export const filterOptionsQuery = protectedProjectProcedure
             ]
           : [],
       );
-      return traces.map((i) => ({ traceName: i.name }));
+      return traces.map((i) => ({ traceName: i.count }));
     };
 
     const getClickhouseTraceTags = async (): Promise<
       Array<{ tag: string }>
     > => {
-      const traces = await getTracesGroupedByTags({
-        projectId: input.projectId,
-        filter: startTimeFilter
+      const traces = await getTracesGroupedByTags(
+        input.projectId,
+        startTimeFilter
           ? [
               {
                 column: "Timestamp",
@@ -82,18 +90,14 @@ export const filterOptionsQuery = protectedProjectProcedure
               },
             ]
           : [],
-      });
+      );
       return traces.map((i) => ({ tag: i.value }));
     };
 
     // Score names
     const [scores, model, name, promptNames, traceNames, tags] =
-      await measureAndReturnApi({
-        input,
-        operation: "traces.all",
-        user: ctx.session.user,
-        pgExecution: async () => {
-          return await Promise.all([
+      !input.queryClickhouse
+        ? await Promise.all([
             // scores
             ctx.prisma.score.groupBy({
               where: {
@@ -175,10 +179,8 @@ export const filterOptionsQuery = protectedProjectProcedure
             ${rawStartTimeFilter}
           LIMIT 1000;
       `),
-          ]);
-        },
-        clickhouseExecution: async () => {
-          return await Promise.all([
+          ])
+        : await Promise.all([
             //scores
             getScoresGroupedByName(
               input.projectId,
@@ -213,8 +215,6 @@ export const filterOptionsQuery = protectedProjectProcedure
             // trace tags
             getClickhouseTraceTags(),
           ]);
-        },
-      });
 
     // typecheck filter options, needs to include all columns with options
     const res: ObservationOptions = {

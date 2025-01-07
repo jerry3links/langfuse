@@ -24,11 +24,11 @@ import { PromptType } from "@/src/features/prompts/server/utils/validation";
 import useProjectIdFromURL from "@/src/hooks/useProjectIdFromURL";
 import { api } from "@/src/utils/api";
 import { cn } from "@/src/utils/tailwind";
-import { useHasEntitlement } from "@/src/features/entitlements/hooks";
+import { useHasOrgEntitlement } from "@/src/features/entitlements/hooks";
 import DocPopup from "@/src/components/layouts/doc-popup";
 
 export const SaveToPromptButton: React.FC = () => {
-  const available = useHasEntitlement("playground");
+  const available = useHasOrgEntitlement("playground");
   const [selectedPromptId, setSelectedPromptId] = useState("");
   const { modelParams, messages, output, promptVariables } =
     usePlaygroundContext();

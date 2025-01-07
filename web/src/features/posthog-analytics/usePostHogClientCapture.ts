@@ -59,13 +59,7 @@ const events = {
     "version_delete_submit",
   ],
   session_detail: ["publish_button_click"],
-  eval_config: [
-    "new_form_submit",
-    "new_form_open",
-    "activate",
-    "deactivate",
-    "update",
-  ],
+  eval_config: ["delete", "new_form_submit", "new_form_open"],
   eval_templates: [
     "view_version",
     "new_form_open",

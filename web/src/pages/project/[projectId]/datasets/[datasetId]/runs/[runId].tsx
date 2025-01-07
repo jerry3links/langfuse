@@ -1,14 +1,11 @@
 import { FullScreenPage } from "@/src/components/layouts/full-screen-page";
 import Header from "@/src/components/layouts/header";
 import { TableWithMetadataWrapper } from "@/src/components/table/TableWithMetadataWrapper";
-import { Button } from "@/src/components/ui/button";
 import { JSONView } from "@/src/components/ui/CodeJsonViewer";
 import { DatasetRunItemsTable } from "@/src/features/datasets/components/DatasetRunItemsTable";
 import { DeleteDatasetRunButton } from "@/src/features/datasets/components/DeleteDatasetRunButton";
 import { DetailPageNav } from "@/src/features/navigate-detail-pages/DetailPageNav";
 import { api } from "@/src/utils/api";
-import { Columns3 } from "lucide-react";
-import Link from "next/link";
 import { useRouter } from "next/router";
 
 export default function Dataset() {
@@ -49,22 +46,11 @@ export default function Dataset() {
             />
             <DetailPageNav
               currentId={runId}
-              path={(entry) =>
-                `/project/${projectId}/datasets/${datasetId}/runs/${entry.id}`
+              path={(id) =>
+                `/project/${projectId}/datasets/${datasetId}/runs/${id}`
               }
               listKey="datasetRuns"
             />
-            <Link
-              href={{
-                pathname: `/project/${projectId}/datasets/${datasetId}/compare`,
-                query: { runs: [runId] },
-              }}
-            >
-              <Button>
-                <Columns3 className="mr-2 h-4 w-4" />
-                <span>Compare</span>
-              </Button>
-            </Link>
           </>
         }
       />

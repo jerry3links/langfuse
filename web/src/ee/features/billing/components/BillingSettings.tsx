@@ -4,12 +4,20 @@ import { Button } from "@/src/components/ui/button";
 import { api } from "@/src/utils/api";
 import { Flex, MarkerBar, Metric, Text } from "@tremor/react";
 import Link from "next/link";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTrigger,
+} from "@/src/components/ui/dialog";
 import Header from "@/src/components/layouts/header";
+import { usePostHogClientCapture } from "@/src/features/posthog-analytics/usePostHogClientCapture";
 import { useQueryOrganization } from "@/src/features/organizations/hooks";
 import { Card } from "@/src/components/ui/card";
 import { numberFormatter, compactNumberFormatter } from "@/src/utils/numbers";
-import { useHasEntitlement } from "@/src/features/entitlements/hooks";
+import { useHasOrgEntitlement } from "@/src/features/entitlements/hooks";
 import { type Plan, planLabels } from "@langfuse/shared";
+import { stripeProducts } from "@/src/ee/features/billing/utils/stripeProducts";
 import { useRouter } from "next/router";
 import {
   chatAvailable,
@@ -18,15 +26,7 @@ import {
 import { env } from "@/src/env.mjs";
 import { useHasOrganizationAccess } from "@/src/features/rbac/utils/checkOrganizationAccess";
 import { Alert, AlertDescription, AlertTitle } from "@/src/components/ui/alert";
-import { MAX_EVENTS_FREE_PLAN } from "@/src/ee/features/billing/constants";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTrigger,
-} from "@/src/components/ui/dialog";
-import { usePostHogClientCapture } from "@/src/features/posthog-analytics/usePostHogClientCapture";
-import { stripeProducts } from "@/src/ee/features/billing/utils/stripeProducts";
+import { MAX_OBSERVATIONS_FREE_PLAN } from "@/src/ee/features/billing/constants";
 
 export const BillingSettings = () => {
   const router = useRouter();
@@ -36,7 +36,7 @@ export const BillingSettings = () => {
     scope: "langfuseCloudBilling:CRUD",
   });
 
-  const entitled = useHasEntitlement("cloud-billing");
+  const entitled = useHasOrgEntitlement("cloud-billing");
   if (!entitled) return null;
 
   if (!hasAccess)
@@ -72,14 +72,11 @@ const OrganizationUsageChart = () => {
       },
     },
   );
-  const hobbyPlanLimit =
-    organization?.cloudConfig?.monthlyObservationLimit ?? MAX_EVENTS_FREE_PLAN;
+  const planLimit =
+    organization?.cloudConfig?.monthlyObservationLimit ??
+    MAX_OBSERVATIONS_FREE_PLAN;
   const plan: Plan = organization?.plan ?? "cloud:hobby";
   const planLabel = planLabels[plan];
-  const usageType = usage.data?.usageType
-    ? usage.data.usageType.charAt(0).toUpperCase() +
-      usage.data.usageType.slice(1)
-    : "Events";
 
   return (
     <div>
@@ -88,21 +85,19 @@ const OrganizationUsageChart = () => {
           <>
             <Text>
               {usage.data.billingPeriod
-                ? `${usageType} in current billing period`
-                : `${usageType} / last 30d`}
+                ? `Observations in current billing period`
+                : "Observations / last 30d"}
             </Text>
-            <Metric>{numberFormatter(usage.data.usageCount, 0)}</Metric>
+            <Metric>{numberFormatter(usage.data.countObservations, 0)}</Metric>
             {plan === "cloud:hobby" && (
               <>
                 <Flex className="mt-4">
-                  <Text>{`${numberFormatter((usage.data.usageCount / hobbyPlanLimit) * 100)}%`}</Text>
-                  <Text>
-                    Plan limit: {compactNumberFormatter(hobbyPlanLimit)}
-                  </Text>
+                  <Text>{`${numberFormatter((usage.data.countObservations / planLimit) * 100)}%`}</Text>
+                  <Text>Plan limit: {compactNumberFormatter(planLimit)}</Text>
                 </Flex>
                 <MarkerBar
                   value={Math.min(
-                    (usage.data.usageCount / hobbyPlanLimit) * 100,
+                    (usage.data.countObservations / planLimit) * 100,
                     100,
                   )}
                   className="mt-3"
@@ -143,35 +138,35 @@ const OrganizationUsageChart = () => {
 
 const BillingPortalOrPricingPageButton = () => {
   const organization = useQueryOrganization();
-  const router = useRouter();
-  const capture = usePostHogClientCapture();
   const billingPortalUrl = api.cloudBilling.getStripeCustomerPortalUrl.useQuery(
     {
       orgId: organization?.id as string,
     },
     {
       enabled: organization !== undefined,
-      refetchOnMount: false,
-      refetchOnReconnect: false,
-      refetchOnWindowFocus: false,
     },
   );
+  if (billingPortalUrl.isLoading) return null;
+  if (!billingPortalUrl.data) return <PricingPageButton />;
 
+  return (
+    <Button asChild>
+      <Link href={billingPortalUrl.data}>Billing portal</Link>
+    </Button>
+  );
+};
+
+const PricingPageButton = () => {
+  const capture = usePostHogClientCapture();
+  const organization = useQueryOrganization();
+  const router = useRouter();
   const mutCreateCheckoutSession =
     api.cloudBilling.createStripeCheckoutSession.useMutation({
       onSuccess: (url) => {
         router.push(url);
       },
     });
-
   if (!organization) return null;
-  if (billingPortalUrl.isLoading) return null;
-  if (billingPortalUrl.data)
-    return (
-      <Button asChild>
-        <Link href={billingPortalUrl.data}>Billing portal</Link>
-      </Button>
-    );
 
   // Do not show checkout or customer portal if manual plan is set in cloud config
   if (organization.cloudConfig?.plan) {
@@ -191,7 +186,6 @@ const BillingPortalOrPricingPageButton = () => {
     else return null;
   }
 
-  // Show pricing page button
   return (
     <Dialog
       onOpenChange={(open) => {

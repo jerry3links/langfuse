@@ -23,7 +23,6 @@ import EmailProvider from "next-auth/providers/email";
 import Auth0Provider from "next-auth/providers/auth0";
 import CognitoProvider from "next-auth/providers/cognito";
 import AzureADProvider from "next-auth/providers/azure-ad";
-import KeycloakProvider from "next-auth/providers/keycloak";
 import { type Provider } from "next-auth/providers/index";
 import { getCookieName, getCookieOptions } from "./utils/cookies";
 import {
@@ -34,29 +33,19 @@ import { z } from "zod";
 import { CloudConfigSchema } from "@langfuse/shared";
 import {
   CustomSSOProvider,
-  GitHubEnterpriseProvider,
   traceException,
   sendResetPasswordVerificationRequest,
   instrumentAsync,
   logger,
 } from "@langfuse/shared/src/server";
-import {
-  getOrganizationPlanServerSide,
-  getSelfHostedInstancePlanServerSide,
-} from "@/src/features/entitlements/server/getPlan";
+import { getOrganizationPlan } from "@/src/features/entitlements/server/getOrganizationPlan";
 import { projectRoleAccessRights } from "@/src/features/rbac/constants/projectAccessRights";
-import { hasEntitlementBasedOnPlan } from "@/src/features/entitlements/server/hasEntitlement";
 
 function canCreateOrganizations(userEmail: string | null): boolean {
-  const instancePlan = getSelfHostedInstancePlanServerSide();
-
-  // if no allowlist is set or no entitlement for self-host-allowed-organization-creators, allow all users to create organizations
+  // if no allowlist is set or no active EE key, allow all users to create organizations
   if (
     !env.LANGFUSE_ALLOWED_ORGANIZATION_CREATORS ||
-    !hasEntitlementBasedOnPlan({
-      plan: instancePlan,
-      entitlement: "self-host-allowed-organization-creators",
-    })
+    !env.LANGFUSE_EE_LICENSE_KEY
   )
     return true;
 
@@ -238,22 +227,6 @@ if (env.AUTH_GITHUB_CLIENT_ID && env.AUTH_GITHUB_CLIENT_SECRET)
     }),
   );
 
-if (
-  env.AUTH_GITHUB_ENTERPRISE_CLIENT_ID &&
-  env.AUTH_GITHUB_ENTERPRISE_CLIENT_SECRET &&
-  env.AUTH_GITHUB_ENTERPRISE_BASE_URL
-) {
-  staticProviders.push(
-    GitHubEnterpriseProvider({
-      clientId: env.AUTH_GITHUB_ENTERPRISE_CLIENT_ID,
-      clientSecret: env.AUTH_GITHUB_ENTERPRISE_CLIENT_SECRET,
-      enterprise: { baseUrl: env.AUTH_GITHUB_ENTERPRISE_BASE_URL },
-      allowDangerousEmailAccountLinking:
-        env.AUTH_GITHUB_ENTERPRISE_ALLOW_ACCOUNT_LINKING === "true",
-    }),
-  );
-}
-
 if (env.AUTH_GITLAB_CLIENT_ID && env.AUTH_GITLAB_CLIENT_SECRET)
   staticProviders.push(
     GitLabProvider({
@@ -290,24 +263,8 @@ if (
       clientId: env.AUTH_COGNITO_CLIENT_ID,
       clientSecret: env.AUTH_COGNITO_CLIENT_SECRET,
       issuer: env.AUTH_COGNITO_ISSUER,
-      checks: "nonce",
       allowDangerousEmailAccountLinking:
         env.AUTH_COGNITO_ALLOW_ACCOUNT_LINKING === "true",
-    }),
-  );
-
-if (
-  env.AUTH_KEYCLOAK_CLIENT_ID &&
-  env.AUTH_KEYCLOAK_CLIENT_SECRET &&
-  env.AUTH_KEYCLOAK_ISSUER
-)
-  staticProviders.push(
-    KeycloakProvider({
-      clientId: env.AUTH_KEYCLOAK_CLIENT_ID,
-      clientSecret: env.AUTH_KEYCLOAK_CLIENT_SECRET,
-      issuer: env.AUTH_KEYCLOAK_ISSUER,
-      allowDangerousEmailAccountLinking:
-        env.AUTH_KEYCLOAK_ALLOW_ACCOUNT_LINKING === "true",
     }),
   );
 
@@ -336,22 +293,6 @@ const extendedPrismaAdapter: Adapter = {
     await createProjectMembershipsOnSignup(user);
 
     return user;
-  },
-
-  async linkAccount(data) {
-    if (!prismaAdapter.linkAccount)
-      throw new Error("NextAuth: prismaAdapter.linkAccount not implemented");
-
-    // Keycloak returns incompatible data with the nextjs-auth schema
-    // (refresh_expires_in and not-before-policy in).
-    // So, we need to remove this data from the payload before linking an account.
-    // https://github.com/nextauthjs/next-auth/issues/7655
-    if (data.provider === "keycloak") {
-      delete data["refresh_expires_in"];
-      delete data["not-before-policy"];
-    }
-
-    await prismaAdapter.linkAccount(data);
   },
 };
 
@@ -417,7 +358,7 @@ export async function getAuthOptions(): Promise<NextAuthOptions> {
                 env.LANGFUSE_DISABLE_EXPENSIVE_POSTGRES_QUERIES === "true",
               // Enables features that are only available under an enterprise license when self-hosting Langfuse
               // If you edit this line, you risk executing code that is not MIT licensed (self-contained in /ee folders otherwise)
-              selfHostedInstancePlan: getSelfHostedInstancePlanServerSide(),
+              eeEnabled: env.LANGFUSE_EE_LICENSE_KEY !== undefined,
             },
             user:
               dbUser !== null
@@ -463,9 +404,7 @@ export async function getAuthOptions(): Promise<NextAuthOptions> {
 
                           // Enables features/entitlements based on the plan of the organization, either cloud or EE version when self-hosting
                           // If you edit this line, you risk executing code that is not MIT licensed (contained in /ee folders, see LICENSE)
-                          plan: getOrganizationPlanServerSide(
-                            parsedCloudConfig.data,
-                          ),
+                          plan: getOrganizationPlan(parsedCloudConfig.data),
                         };
                       },
                     ),

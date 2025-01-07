@@ -49,9 +49,7 @@ export default function DatasetItems() {
             <NewDatasetItemButton projectId={projectId} datasetId={datasetId} />
             <DetailPageNav
               currentId={datasetId}
-              path={(entry) =>
-                `/project/${projectId}/datasets/${entry.id}/items/`
-              }
+              path={(id) => `/project/${projectId}/datasets/${id}/items/`}
               listKey="datasets"
             />
             <DatasetActionButton
@@ -75,7 +73,6 @@ export default function DatasetItems() {
               invalidateFunc={() => void utils.datasets.invalidate()}
               type="dataset"
               redirectUrl={`/project/${projectId}/datasets`}
-              deleteConfirmation={dataset.data?.name}
             />
           </>
         }
