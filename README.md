@@ -4,9 +4,7 @@
 
 
 
-2025-01-06 TEST
-
->>>>>>> bf9a9c807e9b42e7473224004a050fda72713ba7
+2025-01-08
 ![Langfuse GitHub Banner](https://github.com/langfuse/langfuse/assets/121163007/6035f0f3-d691-4963-b5d0-10cf506e9d42)
 
 <div align="center"><h1>Langfuse: Open Source LLM Engineering Platform</h1></div>
