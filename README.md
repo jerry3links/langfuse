@@ -1,4 +1,4 @@
-ROARRRRRRR 2025-01-11
+ROARRRRRRR 2025-01-10
 
 ![Langfuse GitHub Banner](https://github.com/langfuse/langfuse/assets/121163007/6035f0f3-d691-4963-b5d0-10cf506e9d42)
 
