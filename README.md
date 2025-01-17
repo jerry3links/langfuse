@@ -1,4 +1,4 @@
-is Coming 01-16
+is Coming 01-17 (hub)
 
 ![Langfuse GitHub Banner](https://github.com/langfuse/langfuse/assets/121163007/6035f0f3-d691-4963-b5d0-10cf506e9d42)
 
