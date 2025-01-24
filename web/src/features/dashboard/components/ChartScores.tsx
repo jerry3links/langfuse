@@ -8,7 +8,6 @@ import {
   fillMissingValuesAndTransform,
   isEmptyTimeSeries,
 } from "@/src/features/dashboard/components/hooks";
-
 import { createTracesTimeFilter } from "@/src/features/dashboard/lib/dashboard-utils";
 import {
   dashboardDateRangeAggregationSettings,
@@ -56,6 +55,7 @@ export function ChartScores(props: {
         { type: "string", column: "scoreDataType" },
         { type: "string", column: "scoreSource" },
       ],
+      queryName: "scores-aggregate-timeseries",
     },
     {
       trpc: {

@@ -100,9 +100,9 @@ export class RateLimitService {
           isFirstInDuration: err.isFirstInDuration,
         };
       } else {
-        // Some other error occurred, rethrow it
+        // Some other error occurred, return undefined to fail open
         logger.error("Internal Rate limit error", err);
-        throw err;
+        return undefined;
       }
     }
 
@@ -157,9 +157,9 @@ export const sendRateLimitResponse = (
   res.status(429).end("429 - rate limit exceeded");
 };
 
-const createHttpHeaderFromRateLimit = (res: RateLimitResult) => {
+export const createHttpHeaderFromRateLimit = (res: RateLimitResult) => {
   return {
-    "Retry-After": res.msBeforeNext / 1000,
+    "Retry-After": Math.ceil(res.msBeforeNext / 1000),
     "X-RateLimit-Limit": res.points,
     "X-RateLimit-Remaining": res.remainingPoints,
     "X-RateLimit-Reset": new Date(Date.now() + res.msBeforeNext).toString(),
@@ -184,6 +184,7 @@ const getPlanBasedRateLimitConfig = (
 ): z.infer<typeof RateLimitConfig> => {
   switch (plan) {
     case "oss":
+    case "self-hosted:pro":
     case "self-hosted:enterprise":
       return {
         resource,
@@ -196,7 +197,7 @@ const getPlanBasedRateLimitConfig = (
         case "ingestion":
           return {
             resource: "ingestion",
-            points: 1000,
+            points: 4000,
             durationInSec: 60,
           };
         case "legacy-ingestion":
@@ -232,7 +233,7 @@ const getPlanBasedRateLimitConfig = (
         case "ingestion":
           return {
             resource: "ingestion",
-            points: 5000,
+            points: 20000,
             durationInSec: 60,
           };
         case "legacy-ingestion":

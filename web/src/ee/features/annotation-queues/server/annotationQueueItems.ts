@@ -12,7 +12,11 @@ import {
   paginationZod,
   Prisma,
 } from "@langfuse/shared";
-import { logger } from "@langfuse/shared/src/server";
+import {
+  getObservationById,
+  getTraceIdsForObservations,
+  logger,
+} from "@langfuse/shared/src/server";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 
@@ -74,20 +78,13 @@ export const queueItemRouter = createTRPCRouter({
         };
 
         if (item.objectType === AnnotationQueueObjectType.OBSERVATION) {
-          const observation = await ctx.prisma.observation.findUnique({
-            where: {
-              id: item.objectId,
-              projectId: input.projectId,
-            },
-            select: {
-              id: true,
-              traceId: true,
-            },
-          });
-
+          const clickhouseObservation = await getObservationById(
+            item.objectId,
+            input.projectId,
+          );
           return {
             ...inflatedItem,
-            parentTraceId: observation?.traceId,
+            parentTraceId: clickhouseObservation?.traceId,
           };
         }
 
@@ -126,46 +123,40 @@ export const queueItemRouter = createTRPCRouter({
         });
 
         const [queueItems, totalItems] = await Promise.all([
-          // queueItems
-          ctx.prisma.$queryRaw<
+          await ctx.prisma.$queryRaw<
             Array<{
               id: string;
               status: AnnotationQueueStatus;
               objectId: string;
               objectType: AnnotationQueueObjectType;
-              parentTraceId: string | null;
               completedAt: string | null;
               annotatorUserId: string | null;
               annotatorUserImage: string | null;
               annotatorUserName: string | null;
             }>
           >(Prisma.sql`
-          SELECT
-            aqi.id,
-            aqi.status,
-            aqi.object_id AS "objectId",
-            aqi.object_type AS "objectType",
-	          o.trace_id AS "parentTraceId",
-            aqi.completed_at AS "completedAt",
-            aqi.annotator_user_id AS "annotatorUserId",
-            u.image AS "annotatorUserImage", 
-            u.name AS "annotatorUserName"
-          FROM
-            annotation_queue_items aqi
-          LEFT JOIN 
-            observations o ON o.id = aqi.object_id AND aqi.object_type = 'OBSERVATION' AND o.project_id = ${input.projectId}
-          LEFT JOIN 
-            users u ON u.id = aqi.annotator_user_id AND u.id in (SELECT user_id FROM organization_memberships WHERE org_id = ${ctx.session.orgId})
-          WHERE 
-            aqi.project_id = ${input.projectId} AND aqi.queue_id = ${input.queueId}
-          ORDER BY 
-            aqi.created_at ASC,
-            aqi.object_id ASC,
-            aqi.object_type ASC
-          ${input.limit ? Prisma.sql`LIMIT ${input.limit}` : Prisma.empty}
-          ${input.page && input.limit ? Prisma.sql`OFFSET ${input.page * input.limit}` : Prisma.empty}
-        `),
-          // totalItems
+            SELECT
+              aqi.id,
+              aqi.status,
+              aqi.object_id AS "objectId",
+              aqi.object_type AS "objectType",
+              aqi.completed_at AS "completedAt",
+              aqi.annotator_user_id AS "annotatorUserId",
+              u.image AS "annotatorUserImage", 
+              u.name AS "annotatorUserName"
+            FROM
+              annotation_queue_items aqi
+            LEFT JOIN 
+              users u ON u.id = aqi.annotator_user_id AND u.id in (SELECT user_id FROM organization_memberships WHERE org_id = ${ctx.session.orgId})
+            WHERE 
+              aqi.project_id = ${input.projectId} AND aqi.queue_id = ${input.queueId}
+            ORDER BY 
+              aqi.created_at ASC,
+              aqi.object_id ASC,
+              aqi.object_type ASC
+            ${input.limit ? Prisma.sql`LIMIT ${input.limit}` : Prisma.empty}
+            ${input.page && input.limit ? Prisma.sql`OFFSET ${input.page * input.limit}` : Prisma.empty}
+          `),
           ctx.prisma.annotationQueueItem.count({
             where: {
               queueId: input.queueId,
@@ -174,7 +165,25 @@ export const queueItemRouter = createTRPCRouter({
           }),
         ]);
 
-        return { queueItems, totalItems };
+        const observationIds = queueItems
+          .filter(
+            (item) => item.objectType === AnnotationQueueObjectType.OBSERVATION,
+          )
+          .map((item) => item.objectId);
+
+        const traceIds =
+          observationIds.length > 0
+            ? await getTraceIdsForObservations(input.projectId, observationIds)
+            : [];
+
+        return {
+          queueItems: queueItems.map((item) => ({
+            ...item,
+            parentTraceId:
+              traceIds.find((t) => t.id === item.objectId)?.traceId || null,
+          })),
+          totalItems,
+        };
       } catch (error) {
         logger.error(error);
         if (error instanceof TRPCError) {

@@ -165,7 +165,7 @@ export default function SessionsTable({
     if (sessions.isSuccess) {
       setDetailPageList(
         "sessions",
-        sessions.data.sessions.map((t) => t.id),
+        sessions.data.sessions.map((t) => ({ id: t.id })),
       );
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -193,7 +193,7 @@ export default function SessionsTable({
           />
         ) : undefined;
       },
-      enableSorting: true,
+      enableSorting: false,
     },
     {
       accessorKey: "id",
@@ -499,21 +499,23 @@ export default function SessionsTable({
               : {
                   isLoading: false,
                   isError: false,
-                  data: sessionRowData.rows?.map((session) => ({
-                    id: session.id,
-                    createdAt: session.createdAt.toLocaleString(),
-                    userIds: session.userIds,
-                    countTraces: session.countTraces,
-                    bookmarked: session.bookmarked,
-                    sessionDuration: session.sessionDuration,
-                    inputCost: session.inputCost,
-                    outputCost: session.outputCost,
-                    totalCost: session.totalCost,
-                    inputTokens: session.promptTokens,
-                    outputTokens: session.completionTokens,
-                    totalTokens: session.totalTokens,
-                    traceTags: session.traceTags,
-                  })),
+                  data: sessionRowData.rows?.map<SessionTableRow>(
+                    (session) => ({
+                      id: session.id,
+                      bookmarked: session.bookmarked,
+                      createdAt: session.createdAt.toLocaleString(),
+                      userIds: session.userIds,
+                      countTraces: session.countTraces,
+                      sessionDuration: session.sessionDuration,
+                      inputCost: session.inputCost,
+                      outputCost: session.outputCost,
+                      totalCost: session.totalCost,
+                      inputTokens: session.promptTokens,
+                      outputTokens: session.completionTokens,
+                      totalTokens: session.totalTokens,
+                      traceTags: session.traceTags,
+                    }),
+                  ),
                 }
         }
         pagination={{

@@ -16,9 +16,9 @@ import usePlaygroundCache from "@/src/ee/features/playground/page/hooks/usePlayg
 import { getFinalModelParams } from "@/src/ee/utils/getFinalModelParams";
 import { usePostHogClientCapture } from "@/src/features/posthog-analytics/usePostHogClientCapture";
 import useProjectIdFromURL from "@/src/hooks/useProjectIdFromURL";
-import { extractVariables } from "@/src/utils/string";
 import {
   ChatMessageRole,
+  extractVariables,
   type ChatMessageWithId,
   type PromptVariable,
   type UIModelParams,
@@ -323,17 +323,19 @@ function getFinalMessages(
   }
 
   // Dynamically replace variables in the prompt
-  const finalMessages = messages.map((m) => {
-    let content = m.content;
-    for (const variable of promptVariables) {
-      content = content.replace(
-        new RegExp(`{{\\s*${variable.name}\\s*}}`, "g"),
-        variable.value,
-      );
-    }
+  const finalMessages = messages
+    .filter((m) => m.content.length > 0)
+    .map((m) => {
+      let content = m.content;
+      for (const variable of promptVariables) {
+        content = content.replace(
+          new RegExp(`{{\\s*${variable.name}\\s*}}`, "g"),
+          variable.value,
+        );
+      }
 
-    return { ...m, content };
-  });
+      return { ...m, content };
+    });
   return finalMessages;
 }
 

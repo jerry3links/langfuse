@@ -12,6 +12,7 @@ import { TRPCError } from "@trpc/server";
 import * as z from "zod";
 import { throwIfNoOrganizationAccess } from "@/src/features/rbac/utils/checkOrganizationAccess";
 import { auditLog } from "@/src/features/audit-logs/auditLog";
+import { getObservationCountOfProjectsSinceCreationDate } from "@langfuse/shared/src/server";
 
 export const cloudBillingRouter = createTRPCRouter({
   createStripeCheckoutSession: protectedOrganizationProcedure
@@ -106,6 +107,9 @@ export const cloudBillingRouter = createTRPCRouter({
         tax_id_collection: {
           enabled: true,
         },
+        automatic_tax: {
+          enabled: true,
+        },
         consent_collection: {
           terms_of_service: "required",
         },
@@ -142,6 +146,130 @@ export const cloudBillingRouter = createTRPCRouter({
       });
 
       return session.url;
+    }),
+  changeStripeSubscriptionProduct: protectedOrganizationProcedure
+    .input(
+      z.object({
+        orgId: z.string(),
+        stripeProductId: z.string(),
+      }),
+    )
+    .mutation(async ({ input, ctx }) => {
+      throwIfNoOrganizationAccess({
+        organizationId: input.orgId,
+        scope: "langfuseCloudBilling:CRUD",
+        session: ctx.session,
+      });
+      throwIfNoEntitlement({
+        entitlement: "cloud-billing",
+        sessionUser: ctx.session.user,
+        orgId: input.orgId,
+      });
+
+      // check that product is valid
+      if (
+        !stripeProducts
+          .filter((i) => Boolean(i.checkout))
+          .map((i) => i.stripeProductId)
+          .includes(input.stripeProductId)
+      )
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Invalid stripe product id, product not available",
+        });
+
+      const org = await ctx.prisma.organization.findUnique({
+        where: {
+          id: input.orgId,
+        },
+      });
+      if (!org) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Organization not found",
+        });
+      }
+
+      const parsedOrg = parseDbOrg(org);
+      if (parsedOrg.cloudConfig?.plan)
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Cannot change plan for orgs that have a manual/legacy plan",
+        });
+
+      const stripeSubscriptionId =
+        parsedOrg.cloudConfig?.stripe?.activeSubscriptionId;
+
+      if (!stripeSubscriptionId)
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Organization does not have an active subscription",
+        });
+
+      if (!stripeClient)
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Stripe client not initialized",
+        });
+
+      const subscription =
+        await stripeClient.subscriptions.retrieve(stripeSubscriptionId);
+
+      if (
+        ["canceled", "paused", "incomplete", "incomplete_expired"].includes(
+          subscription.status,
+        )
+      )
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message:
+            "Subscription is not active, current status: " +
+            subscription.status,
+        });
+
+      if (subscription.items.data.length !== 1)
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Subscription has multiple items",
+        });
+
+      const item = subscription.items.data[0];
+
+      if (
+        !stripeProducts
+          .map((i) => i.stripeProductId)
+          .includes(item.price.product as string)
+      )
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Current subscription product is not a valid product",
+        });
+
+      const newProduct = await stripeClient.products.retrieve(
+        input.stripeProductId,
+      );
+      if (!newProduct.default_price)
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "New product does not have a default price in Stripe",
+        });
+
+      await stripeClient.subscriptions.update(stripeSubscriptionId, {
+        items: [
+          // remove current product from subscription
+          {
+            id: item.id,
+            deleted: true,
+          },
+          // add new product to subscription
+          {
+            price: newProduct.default_price as string,
+          },
+        ],
+        // reset billing cycle which causes immediate invoice for existing plan
+        billing_cycle_anchor: "now",
+        proration_behavior: "none",
+      });
     }),
   getStripeCustomerPortalUrl: protectedOrganizationProcedure
     .input(
@@ -218,6 +346,13 @@ export const cloudBillingRouter = createTRPCRouter({
         where: {
           id: input.orgId,
         },
+        include: {
+          projects: {
+            select: {
+              id: true,
+            },
+          },
+        },
       });
       if (!organization) {
         throw new TRPCError({
@@ -241,6 +376,7 @@ export const cloudBillingRouter = createTRPCRouter({
             start: new Date(subscription.current_period_start * 1000),
             end: new Date(subscription.current_period_end * 1000),
           };
+
           const stripeInvoice = await stripeClient.invoices.retrieveUpcoming({
             subscription: parsedOrg.cloudConfig.stripe.activeSubscriptionId,
           });
@@ -248,38 +384,78 @@ export const cloudBillingRouter = createTRPCRouter({
             usdAmount: stripeInvoice.amount_due / 100,
             date: new Date(stripeInvoice.period_end * 1000),
           };
-          const usage = stripeInvoice.lines.data.reduce((acc, line) => {
+          const usageInvoiceLines = stripeInvoice.lines.data.filter((line) =>
+            Boolean(line.plan?.meter),
+          );
+          const usage = usageInvoiceLines.reduce((acc, line) => {
             if (line.quantity) {
               return acc + line.quantity;
             }
             return acc;
           }, 0);
+          // get meter for usage type (events or observations)
+          const meterId = usageInvoiceLines[0]?.plan?.meter;
+          const meter = meterId
+            ? await stripeClient.billing.meters.retrieve(meterId)
+            : undefined;
+
           return {
-            countObservations: usage,
+            usageCount: usage,
+            usageType: meter?.display_name.toLowerCase() ?? "events",
             billingPeriod,
             upcomingInvoice,
           };
         }
       }
 
-      // For non-Stripe subscriptions, we can only get usage from the LangFuse API
+      // Free plan, usage not tracked on Stripe
       const thirtyDaysAgo = new Date();
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
       thirtyDaysAgo.setHours(0, 0, 0, 0);
+      const projectIds = organization.projects.map((p) => p.id);
 
-      const usage = await ctx.prisma.observation.count({
-        where: {
-          project: {
-            orgId: input.orgId,
-          },
-          startTime: {
-            gte: thirtyDaysAgo,
-          },
-        },
-      });
+      const countObservations =
+        await getObservationCountOfProjectsSinceCreationDate({
+          projectIds,
+          start: thirtyDaysAgo,
+        });
+
+      // const usageArr = await Promise.all([
+      //   ctx.prisma.observation.count({
+      //     where: {
+      //       project: {
+      //         orgId: input.orgId,
+      //       },
+      //       createdAt: {
+      //         gte: thirtyDaysAgo,
+      //       },
+      //     },
+      //   }),
+      //   ctx.prisma.trace.count({
+      //     where: {
+      //       project: {
+      //         orgId: input.orgId,
+      //       },
+      //       createdAt: {
+      //         gte: thirtyDaysAgo,
+      //       },
+      //     },
+      //   }),
+      //   ctx.prisma.score.count({
+      //     where: {
+      //       project: {
+      //         orgId: input.orgId,
+      //       },
+      //       createdAt: {
+      //         gte: thirtyDaysAgo,
+      //       },
+      //     },
+      //   }),
+      // ]);
 
       return {
-        countObservations: usage,
+        usageCount: countObservations,
+        usageType: "observations",
       };
     }),
 });

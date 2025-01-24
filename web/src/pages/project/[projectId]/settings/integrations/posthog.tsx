@@ -13,7 +13,7 @@ import {
 import { Input } from "@/src/components/ui/input";
 import { PasswordInput } from "@/src/components/ui/password-input";
 import { Switch } from "@/src/components/ui/switch";
-import { useHasOrgEntitlement } from "@/src/features/entitlements/hooks";
+import { useHasEntitlement } from "@/src/features/entitlements/hooks";
 import { usePostHogClientCapture } from "@/src/features/posthog-analytics/usePostHogClientCapture";
 import { posthogIntegrationFormSchema } from "@/src/features/posthog-integration/types";
 import { useHasProjectAccess } from "@/src/features/rbac/utils/checkProjectAccess";
@@ -30,7 +30,7 @@ import { type z } from "zod";
 export default function PosthogIntegrationSettings() {
   const router = useRouter();
   const projectId = router.query.projectId as string;
-  const entitled = useHasOrgEntitlement("integration-posthog");
+  const entitled = useHasEntitlement("integration-posthog");
   const hasAccess = useHasProjectAccess({
     projectId,
     scope: "integrations:CRUD",
@@ -71,9 +71,10 @@ export default function PosthogIntegrationSettings() {
           PostHog
         </Link>{" "}
         (OSS product analytics) to make Langfuse events/metrics available in
-        your Posthog Dashboards. While in Beta, this integration syncs metrics
-        on a daily schedule to PostHog. When first activated, it will sync all
-        historical data from the beginning of your project.
+        your PostHog dashboards. Upon activation, all historical data from your
+        project will be synced. After the initial sync, new data is
+        automatically synced every hour to keep your PostHog dashboards up to
+        date.
       </p>
       {!hasAccess && (
         <p className="text-sm">
@@ -102,9 +103,6 @@ export default function PosthogIntegrationSettings() {
             {state.data?.lastSyncAt
               ? new Date(state.data.lastSyncAt).toLocaleString()
               : "Never (pending)"}
-          </p>
-          <p className="mt-2 text-sm text-primary">
-            While in Beta, the sync is scheduled to run once a day.
           </p>
         </>
       )}

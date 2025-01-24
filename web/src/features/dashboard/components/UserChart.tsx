@@ -60,6 +60,7 @@ export const UserChart = ({
       orderBy: [
         { column: "calculatedTotalCost", direction: "DESC", agg: "SUM" },
       ],
+      queryName: "observations-usage-by-users",
     },
     {
       trpc: {
@@ -83,6 +84,7 @@ export const UserChart = ({
         },
       ],
       orderBy: [{ column: "traceId", agg: "COUNT", direction: "DESC" }],
+      queryName: "traces-grouped-by-user",
     },
     {
       trpc: {

@@ -24,10 +24,11 @@ import { ScoresPreview } from "@/src/components/trace/ScoresPreview";
 import { AnnotateDrawer } from "@/src/features/scores/components/AnnotateDrawer";
 import useLocalStorage from "@/src/components/useLocalStorage";
 import { CommentDrawerButton } from "@/src/features/comments/CommentDrawerButton";
+import { api } from "@/src/utils/api";
 import { cn } from "@/src/utils/tailwind";
 import { NewDatasetItemFromTrace } from "@/src/features/datasets/components/NewDatasetItemFromObservationButton";
 import { CreateNewAnnotationQueueItem } from "@/src/ee/features/annotation-queues/components/CreateNewAnnotationQueueItem";
-import { useHasOrgEntitlement } from "@/src/features/entitlements/hooks";
+import { useHasEntitlement } from "@/src/features/entitlements/hooks";
 import { useMemo } from "react";
 import { usdFormatter } from "@/src/utils/numbers";
 import { calculateDisplayTotalCost } from "@/src/components/trace/lib/helpers";
@@ -37,6 +38,8 @@ import {
   TabsBarList,
   TabsBarTrigger,
 } from "@/src/components/ui/tabs-bar";
+import { BreakdownTooltip } from "@/src/components/trace/BreakdownToolTip";
+import { InfoIcon } from "lucide-react";
 
 export const TracePreview = ({
   trace,
@@ -60,7 +63,7 @@ export const TracePreview = ({
   const [emptySelectedConfigIds, setEmptySelectedConfigIds] = useLocalStorage<
     string[]
   >("emptySelectedConfigIds", []);
-  const hasEntitlement = useHasOrgEntitlement("annotation-queues");
+  const hasEntitlement = useHasEntitlement("annotation-queues");
   const isAuthenticatedAndProjectMember = useIsAuthenticatedAndProjectMember(
     trace.projectId,
   );
@@ -73,6 +76,18 @@ export const TracePreview = ({
     acc.get(score.source)?.push(score);
     return acc;
   }, new Map<ScoreSource, APIScore[]>());
+  const traceMedia = api.media.getByTraceOrObservationId.useQuery(
+    {
+      traceId: trace.id,
+      projectId: trace.projectId,
+    },
+    {
+      refetchOnWindowFocus: false,
+      refetchOnMount: false,
+      refetchOnReconnect: false,
+      staleTime: 50 * 60 * 1000, // 50 minutes
+    },
+  );
 
   const totalCost = useMemo(
     () =>
@@ -120,7 +135,16 @@ export const TracePreview = ({
                     {formatIntervalSeconds(trace.latency)}
                   </Badge>
                 )}
-                <AggUsageBadge observations={observations} />
+                <BreakdownTooltip
+                  details={observations
+                    .filter((o) => o.type === "GENERATION")
+                    .map((o) => o.usageDetails)}
+                >
+                  <AggUsageBadge
+                    observations={observations}
+                    rightIcon={<InfoIcon className="h-3 w-3" />}
+                  />
+                </BreakdownTooltip>
                 {!!trace.release && (
                   <Badge variant="outline">Release: {trace.release}</Badge>
                 )}
@@ -128,49 +152,62 @@ export const TracePreview = ({
                   <Badge variant="outline">Version: {trace.version}</Badge>
                 )}
                 {totalCost && (
-                  <Badge variant="outline">
-                    ∑ {usdFormatter(totalCost.toNumber())}
-                  </Badge>
+                  <BreakdownTooltip
+                    details={observations
+                      .filter((o) => o.type === "GENERATION")
+                      .map((o) => o.costDetails)}
+                    isCost
+                  >
+                    <Badge variant="outline">
+                      <span className="flex items-center gap-1">
+                        Total Cost: {usdFormatter(totalCost.toNumber())}
+                        <InfoIcon className="h-3 w-3" />
+                      </span>
+                    </Badge>
+                  </BreakdownTooltip>
                 )}
               </div>
             )}
           </div>
-          {viewType === "detailed" && (
-            <div className="flex flex-wrap gap-2">
-              <CommentDrawerButton
-                projectId={trace.projectId}
-                objectId={trace.id}
-                objectType="TRACE"
-                count={commentCounts?.get(trace.id)}
-              />
-              <div className="flex items-start">
-                <AnnotateDrawer
-                  key={"annotation-drawer" + trace.id}
+
+          <div className="flex flex-wrap gap-2">
+            {viewType === "detailed" && (
+              <>
+                <CommentDrawerButton
                   projectId={trace.projectId}
-                  traceId={trace.id}
-                  scores={scores}
-                  emptySelectedConfigIds={emptySelectedConfigIds}
-                  setEmptySelectedConfigIds={setEmptySelectedConfigIds}
-                  hasGroupedButton={hasEntitlement}
+                  objectId={trace.id}
+                  objectType="TRACE"
+                  count={commentCounts?.get(trace.id)}
                 />
-                {hasEntitlement && (
-                  <CreateNewAnnotationQueueItem
+                <div className="flex items-start">
+                  <AnnotateDrawer
+                    key={"annotation-drawer" + trace.id}
                     projectId={trace.projectId}
-                    objectId={trace.id}
-                    objectType={AnnotationQueueObjectType.TRACE}
+                    traceId={trace.id}
+                    scores={scores}
+                    emptySelectedConfigIds={emptySelectedConfigIds}
+                    setEmptySelectedConfigIds={setEmptySelectedConfigIds}
+                    hasGroupedButton={hasEntitlement}
                   />
-                )}
-              </div>
-              <NewDatasetItemFromTrace
-                traceId={trace.id}
-                projectId={trace.projectId}
-                input={trace.input}
-                output={trace.output}
-                metadata={trace.metadata}
-                key={trace.id}
-              />
-            </div>
-          )}
+                  {hasEntitlement && (
+                    <CreateNewAnnotationQueueItem
+                      projectId={trace.projectId}
+                      objectId={trace.id}
+                      objectType={AnnotationQueueObjectType.TRACE}
+                    />
+                  )}
+                </div>
+              </>
+            )}
+            <NewDatasetItemFromTrace
+              traceId={trace.id}
+              projectId={trace.projectId}
+              input={trace.input}
+              output={trace.output}
+              metadata={trace.metadata}
+              key={trace.id}
+            />
+          </div>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
           {selectedTab === "preview" && (
@@ -179,11 +216,15 @@ export const TracePreview = ({
                 key={trace.id + "-io"}
                 input={trace.input ?? undefined}
                 output={trace.output ?? undefined}
+                media={traceMedia.data}
               />
               <JSONView
                 key={trace.id + "-metadata"}
                 title="Metadata"
                 json={trace.metadata}
+                media={
+                  traceMedia.data?.filter((m) => m.field === "metadata") ?? []
+                }
               />
               {viewType === "detailed" && (
                 <ScoresPreview itemScoresBySource={traceScoresBySource} />

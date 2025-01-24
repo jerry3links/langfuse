@@ -11,11 +11,11 @@ import { DetailPageNav } from "@/src/features/navigate-detail-pages/DetailPageNa
 import { PromptType } from "@/src/features/prompts/server/utils/validation";
 import useProjectIdFromURL from "@/src/hooks/useProjectIdFromURL";
 import { api } from "@/src/utils/api";
-import { extractVariables } from "@/src/utils/string";
+import { extractVariables } from "@langfuse/shared";
 import { ScrollArea } from "@radix-ui/react-scroll-area";
 import { TagPromptDetailsPopover } from "@/src/features/tag/components/TagPromptDetailsPopover";
 import { PromptHistoryNode } from "./prompt-history";
-import Generations from "@/src/components/table/use-cases/generations";
+import Generations from "@/src/components/table/use-cases/observations";
 import {
   Accordion,
   AccordionContent,
@@ -25,11 +25,20 @@ import {
 import { JumpToPlaygroundButton } from "@/src/ee/features/playground/page/components/JumpToPlaygroundButton";
 import { ChatMlArraySchema } from "@/src/components/schemas/ChatMlSchema";
 import { CommentList } from "@/src/features/comments/CommentList";
-import { Lock, Plus } from "lucide-react";
+import { Lock, Plus, FlaskConical } from "lucide-react";
 import { useHasProjectAccess } from "@/src/features/rbac/utils/checkProjectAccess";
 import { Button } from "@/src/components/ui/button";
 import { usePostHogClientCapture } from "@/src/features/posthog-analytics/usePostHogClientCapture";
 import { ScrollScreenPage } from "@/src/components/layouts/scroll-screen-page";
+import {
+  Dialog,
+  DialogContent,
+  DialogTrigger,
+} from "@/src/components/ui/dialog";
+import { CreateExperimentsForm } from "@/src/ee/features/experiments/components/CreateExperimentsForm";
+import { useState } from "react";
+import { useHasEntitlement } from "@/src/features/entitlements/hooks";
+import { showSuccessToast } from "@/src/features/notifications/showSuccessToast";
 
 export const PromptDetail = () => {
   const projectId = useProjectIdFromURL();
@@ -39,9 +48,16 @@ export const PromptDetail = () => {
     "version",
     NumberParam,
   );
+  const hasEntitlement = useHasEntitlement("prompt-experiments");
+  const [isCreateExperimentDialogOpen, setIsCreateExperimentDialogOpen] =
+    useState(false);
   const hasAccess = useHasProjectAccess({
     projectId,
     scope: "prompts:CUD",
+  });
+  const hasExperimentWriteAccess = useHasProjectAccess({
+    projectId,
+    scope: "promptExperiments:CUD",
   });
   const promptHistory = api.prompts.allVersions.useQuery(
     {
@@ -75,6 +91,27 @@ export const PromptDetail = () => {
       );
     }
   }
+  const utils = api.useUtils();
+
+  const handleExperimentSuccess = async (data?: {
+    success: boolean;
+    datasetId: string;
+    runId: string;
+    runName: string;
+  }) => {
+    setIsCreateExperimentDialogOpen(false);
+    if (!data) return;
+    void utils.datasets.baseRunDataByDatasetId.invalidate();
+    void utils.datasets.runsByDatasetId.invalidate();
+    showSuccessToast({
+      title: "Experiment run triggered successfully",
+      description: "Waiting for experiment to complete...",
+      link: {
+        text: "View experiment",
+        href: `/project/${projectId}/datasets/${data.datasetId}/compare?runIds=${data.runId}`,
+      },
+    });
+  };
 
   const allTags = (
     api.prompts.filterOptions.useQuery(
@@ -122,22 +159,63 @@ export const PromptDetail = () => {
         ]}
         actionButtons={
           <>
+            <JumpToPlaygroundButton
+              source="prompt"
+              prompt={prompt}
+              analyticsEventName="prompt_detail:test_in_playground_button_click"
+              variant="outline"
+            />
             {hasAccess ? (
-              <Button
-                variant="secondary"
-                onClick={() => {
-                  capture("prompts:update_form_open");
-                }}
-              >
-                <Link
-                  href={`/project/${projectId}/prompts/new?promptId=${encodeURIComponent(prompt.id)}`}
+              <>
+                {hasEntitlement && (
+                  <Dialog
+                    open={isCreateExperimentDialogOpen}
+                    onOpenChange={setIsCreateExperimentDialogOpen}
+                  >
+                    <DialogTrigger asChild disabled={!hasExperimentWriteAccess}>
+                      <Button
+                        variant="outline"
+                        disabled={!hasExperimentWriteAccess}
+                        onClick={() => capture("dataset_run:new_form_open")}
+                      >
+                        <FlaskConical className="h-4 w-4" />
+                        <span className="ml-2">Experiment</span>
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-h-[90vh] overflow-y-auto">
+                      <CreateExperimentsForm
+                        key={`create-experiment-form-${prompt.id}`}
+                        projectId={projectId as string}
+                        setFormOpen={setIsCreateExperimentDialogOpen}
+                        defaultValues={{
+                          promptId: prompt.id,
+                        }}
+                        promptDefault={{
+                          name: prompt.name,
+                          version: prompt.version,
+                        }}
+                        handleExperimentSuccess={handleExperimentSuccess}
+                      />
+                    </DialogContent>
+                  </Dialog>
+                )}
+
+                <Button
+                  variant="default"
+                  onClick={() => {
+                    capture("prompts:update_form_open");
+                  }}
                 >
-                  <div className="flex flex-row items-center">
-                    <Plus className="h-4 w-4" />
-                    <span className="ml-2">New version</span>
-                  </div>
-                </Link>
-              </Button>
+                  <Link
+                    href={`/project/${projectId}/prompts/new?promptId=${encodeURIComponent(prompt.id)}`}
+                  >
+                    <div className="flex flex-row items-center">
+                      <Plus className="h-4 w-4" />
+                      <span className="ml-2">New version</span>
+                    </div>
+                  </Link>
+                </Button>
+              </>
             ) : (
               <Button variant="secondary" disabled>
                 <div className="flex flex-row items-center">
@@ -146,16 +224,10 @@ export const PromptDetail = () => {
                 </div>
               </Button>
             )}
-            <JumpToPlaygroundButton
-              source="prompt"
-              prompt={prompt}
-              analyticsEventName="prompt_detail:test_in_playground_button_click"
-              variant="outline"
-            />
             <DetailPageNav
               key="nav"
               currentId={promptName}
-              path={(name) => `/project/${projectId}/prompts/${name}`}
+              path={(entry) => `/project/${projectId}/prompts/${entry.id}`}
               listKey="prompts"
             />
             <Tabs value="editor">
@@ -191,7 +263,11 @@ export const PromptDetail = () => {
         </div>
         <div className="col-span-2 md:h-full">
           {prompt.type === PromptType.Chat && chatMessages ? (
-            <OpenAiMessageView title="Chat prompt" messages={chatMessages} />
+            <OpenAiMessageView
+              title="Chat prompt"
+              messages={chatMessages}
+              collapseLongHistory={false}
+            />
           ) : typeof prompt.prompt === "string" ? (
             <CodeView content={prompt.prompt} title="Text prompt" />
           ) : (

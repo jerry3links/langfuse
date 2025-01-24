@@ -1,11 +1,8 @@
-import { LockIcon, PlusIcon } from "lucide-react";
-import Link from "next/link";
+import { PlusIcon } from "lucide-react";
 import { useEffect } from "react";
-
 import { DataTable } from "@/src/components/table/data-table";
 import TableLink from "@/src/components/table/table-link";
 import { type LangfuseColumnDef } from "@/src/components/table/types";
-import { Button } from "@/src/components/ui/button";
 import { useDetailPageLists } from "@/src/features/navigate-detail-pages/context";
 import { DeletePrompt } from "@/src/features/prompts/components/delete-prompt";
 import { useHasProjectAccess } from "@/src/features/rbac/utils/checkProjectAccess";
@@ -23,6 +20,8 @@ import { usePostHogClientCapture } from "@/src/features/posthog-analytics/usePos
 import { joinTableCoreAndMetrics } from "@/src/components/table/utils/joinTableCoreAndMetrics";
 import { Skeleton } from "@/src/components/ui/skeleton";
 import { useDebounce } from "@/src/hooks/useDebounce";
+import { ActionButton } from "@/src/components/ActionButton";
+import { useEntitlementLimit } from "@/src/features/entitlements/hooks";
 
 type PromptTableRow = {
   name: string;
@@ -128,11 +127,13 @@ export function PromptTable() {
   const capture = usePostHogClientCapture();
   const totalCount = prompts.data?.totalCount ?? null;
 
+  const promptLimit = useEntitlementLimit("prompt-management-count-prompts");
+
   useEffect(() => {
     if (prompts.isSuccess) {
       setDetailPageList(
         "prompts",
-        prompts.data.prompts.map((t) => t.name),
+        prompts.data.prompts.map((t) => ({ id: t.name })),
       );
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -184,7 +185,7 @@ export function PromptTable() {
       },
     }),
     columnHelper.accessor("numberOfObservations", {
-      header: "Number of Generations",
+      header: "Number of Observations",
       size: 170,
       cell: (row) => {
         const numberOfObservations = row.getValue();
@@ -197,7 +198,7 @@ export function PromptTable() {
         }
         return (
           <TableLink
-            path={`/project/${projectId}/generations?filter=${numberOfObservations ? filter : ""}`}
+            path={`/project/${projectId}/observations?filter=${numberOfObservations ? filter : ""}`}
             value={numberOfObservations.toLocaleString()}
           />
         );
@@ -250,29 +251,19 @@ export function PromptTable() {
         setFilterState={useDebounce(setFilterState)}
         columnsWithCustomSelect={["labels", "tags"]}
         actionButtons={
-          <Link href={`/project/${projectId}/prompts/new`}>
-            <Button
-              variant="secondary"
-              disabled={!hasCUDAccess}
-              aria-label="Create New Prompt"
-              onClick={() => {
-                capture("prompts:new_form_open");
-              }}
-            >
-              {hasCUDAccess ? (
-                <PlusIcon
-                  className="-ml-0.5 mr-1.5 h-4 w-4"
-                  aria-hidden="true"
-                />
-              ) : (
-                <LockIcon
-                  className="-ml-0.5 mr-1.5 h-3 w-3"
-                  aria-hidden="true"
-                />
-              )}
-              New prompt
-            </Button>
-          </Link>
+          <ActionButton
+            icon={<PlusIcon className="h-4 w-4" aria-hidden="true" />}
+            hasAccess={hasCUDAccess}
+            href={`/project/${projectId}/prompts/new`}
+            variant="secondary"
+            limit={promptLimit}
+            limitValue={totalCount ?? 0}
+            onClick={() => {
+              capture("prompts:new_form_open");
+            }}
+          >
+            New prompt
+          </ActionButton>
         }
       />
       <DataTable

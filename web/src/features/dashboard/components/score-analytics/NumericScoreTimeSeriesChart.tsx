@@ -74,6 +74,7 @@ export function NumericScoreTimeSeriesChart(props: {
           column: "scoreDataType",
         },
       ],
+      queryName: "numeric-score-time-series",
     },
     {
       trpc: {

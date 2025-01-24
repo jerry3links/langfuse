@@ -2,7 +2,7 @@ import { UiColumnMapping } from "./types";
 
 export const tracesTableUiColumnDefinitions: UiColumnMapping[] = [
   {
-    uiTableName: "bookmarked",
+    uiTableName: "⭐️",
     uiTableId: "bookmarked",
     clickhouseTableName: "traces",
     clickhouseSelect: "bookmarked",
@@ -71,49 +71,63 @@ export const tracesTableUiColumnDefinitions: UiColumnMapping[] = [
   {
     uiTableName: "Input Tokens",
     uiTableId: "inputTokens",
-    clickhouseTableName: "traces",
+    clickhouseTableName: "observations",
     clickhouseSelect:
-      "if(mapExists((k, v) -> (k = 'input'), usage_details), usage_details['input'], NULL)",
+      "arraySum(mapValues(mapFilter(x -> positionCaseInsensitive(x.1, 'input') > 0, usage_details)))",
   },
   {
     uiTableName: "Output Tokens",
     uiTableId: "outputTokens",
-    clickhouseTableName: "traces",
+    clickhouseTableName: "observations",
     clickhouseSelect:
-      "if(mapExists((k, v) -> (k = 'output'), usage_details), usage_details['output'], NULL)",
+      "arraySum(mapValues(mapFilter(x -> positionCaseInsensitive(x.1, 'output') > 0, usage_details)))",
   },
   {
     uiTableName: "Total Tokens",
     uiTableId: "totalTokens",
-    clickhouseTableName: "traces",
+    clickhouseTableName: "observations",
     clickhouseSelect:
       "if(mapExists((k, v) -> (k = 'total'), usage_details), usage_details['total'], NULL)",
   },
   {
+    uiTableName: "Usage",
+    uiTableId: "usage",
+    clickhouseTableName: "observations",
+    clickhouseSelect:
+      "if(mapExists((k, v) -> (k = 'total'), usage_details), usage_details['total'], NULL)",
+  },
+  {
+    uiTableName: "Scores",
+    uiTableId: "scores",
+    clickhouseTableName: "scores",
+    clickhouseSelect: "s.scores_avg",
+  },
+  {
     uiTableName: "Latency (s)",
     uiTableId: "latency",
-    clickhouseTableName: "traces",
-    clickhouseSelect: "latency",
+    clickhouseTableName: "observations",
+    clickhouseSelect: "latency_milliseconds / 1000",
+    // If we use the default of Decimal64(12), we cannot filter for more than ~40min due to an overflow
+    clickhouseTypeOverwrite: "Decimal64(3)",
   },
   {
     uiTableName: "Input Cost ($)",
     uiTableId: "inputCost",
-    clickhouseTableName: "traces",
+    clickhouseTableName: "observations",
     clickhouseSelect:
-      "if(mapExists((k, v) -> (k = 'input'), cost_details), usage_details['input'], NULL)",
+      "arraySum(mapValues(mapFilter(x -> positionCaseInsensitive(x.1, 'input') > 0, cost_details)))",
   },
   {
     uiTableName: "Output Cost ($)",
     uiTableId: "outputCost",
-    clickhouseTableName: "traces",
+    clickhouseTableName: "observations",
     clickhouseSelect:
-      "if(mapExists((k, v) -> (k = 'output'), cost_details), usage_details['output'], NULL)",
+      "arraySum(mapValues(mapFilter(x -> positionCaseInsensitive(x.1, 'output') > 0, cost_details)))",
   },
   {
     uiTableName: "Total Cost ($)",
     uiTableId: "totalCost",
-    clickhouseTableName: "traces",
-    clickhouseSelect:
-      "if(mapExists((k, v) -> (k = 'total'), cost_details), usage_details['total'], NULL)",
+    clickhouseTableName: "observations",
+    clickhouseSelect: "cost_details['total']",
   },
 ];

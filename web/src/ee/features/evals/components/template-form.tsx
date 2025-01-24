@@ -15,7 +15,7 @@ import {
 import { Textarea } from "@/src/components/ui/textarea";
 import { api } from "@/src/utils/api";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { extractVariables, getIsCharOrUnderscore } from "@/src/utils/string";
+import { extractVariables, getIsCharOrUnderscore } from "@langfuse/shared";
 import router from "next/router";
 import { type EvalTemplate } from "@langfuse/shared";
 import { ModelParameters } from "@/src/components/ModelParameters";
@@ -293,7 +293,7 @@ export const InnerEvalTemplateForm = (props: {
   });
 
   const evaluatorsByTemplateNameQuery =
-    api.evals.evaluatorsByTemplateName.useQuery(
+    api.evals.jobConfigsByTemplateName.useQuery(
       {
         projectId: props.projectId,
         evalTemplateName: props.existingEvalTemplateName as string,
@@ -545,7 +545,6 @@ export const InnerEvalTemplateForm = (props: {
                 modelParamsDescription:
                   "Select a model which supports function calling.",
               }}
-              evalModelsOnly
               formDisabled={!props.isEditing}
             />
           </div>

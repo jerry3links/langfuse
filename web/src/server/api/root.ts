@@ -20,12 +20,16 @@ import { organizationsRouter } from "@/src/features/organizations/server/organiz
 import { scoreConfigsRouter } from "@/src/server/api/routers/scoreConfigs";
 import { publicRouter } from "@/src/server/api/routers/public";
 import { credentialsRouter } from "@/src/features/auth-credentials/server/credentialsRouter";
-import { batchExportRouter } from "@/src/server/api/routers/batchExport";
+import { batchExportRouter } from "@/src/features/batch-exports/server/batchExport";
 import { utilsRouter } from "@/src/server/api/routers/utilities";
 import { uiCustomizationRouter } from "@/src/ee/features/ui-customization/uiCustomizationRouter";
 import { commentsRouter } from "@/src/server/api/routers/comments";
 import { queueRouter } from "@/src/ee/features/annotation-queues/server/annotationQueues";
 import { queueItemRouter } from "@/src/ee/features/annotation-queues/server/annotationQueueItems";
+import { experimentsRouter } from "@/src/ee/features/experiments/server/router";
+import { mediaRouter } from "@/src/server/api/routers/media";
+import { backgroundMigrationsRouter } from "@/src/features/background-migrations/server/background-migrations-router";
+import { auditLogsRouter } from "./routers/auditLogs";
 
 /**
  * This is the primary router for your server.
@@ -53,6 +57,7 @@ export const appRouter = createTRPCRouter({
   prompts: promptRouter,
   models: modelRouter,
   evals: evalRouter,
+  experiments: experimentsRouter,
   posthogIntegration: posthogIntegrationRouter,
   llmApiKey: llmApiKeyRouter,
   public: publicRouter,
@@ -60,6 +65,9 @@ export const appRouter = createTRPCRouter({
   utilities: utilsRouter,
   uiCustomization: uiCustomizationRouter,
   comments: commentsRouter,
+  media: mediaRouter,
+  backgroundMigrations: backgroundMigrationsRouter,
+  auditLogs: auditLogsRouter,
 });
 
 // export type definition of API

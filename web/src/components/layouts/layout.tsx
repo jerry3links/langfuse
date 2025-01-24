@@ -7,19 +7,14 @@ import { env } from "@/src/env.mjs";
 import { Spinner } from "@/src/components/layouts/spinner";
 import { hasProjectAccess } from "@/src/features/rbac/utils/checkProjectAccess";
 import { Toaster } from "@/src/components/ui/sonner";
-import {
-  NOTIFICATIONS,
-  useCheckNotification,
-} from "@/src/features/notifications/checkNotifications";
 import DOMPurify from "dompurify";
 import { ThemeToggle } from "@/src/features/theming/ThemeToggle";
 import { useQueryProjectOrOrganization } from "@/src/features/projects/hooks";
-import { useOrgEntitlements } from "@/src/features/entitlements/hooks";
+import { useEntitlements } from "@/src/features/entitlements/hooks";
 import { useUiCustomization } from "@/src/ee/features/ui-customization/useUiCustomization";
 import { hasOrganizationAccess } from "@/src/features/rbac/utils/checkOrganizationAccess";
-import { ClickhouseAdminToggle } from "@/src/components/layouts/ClickhouseAdminToggle";
 import { SidebarInset, SidebarProvider } from "@/src/components/ui/sidebar";
-import { AppSidebar } from "@/src/components/app-sidebar";
+import { AppSidebar } from "@/src/components/nav/app-sidebar";
 
 const signOutUser = async () => {
   localStorage.clear();
@@ -28,8 +23,8 @@ const signOutUser = async () => {
   await signOut();
 };
 
-const getUserNavigation = (isAdmin: boolean) => {
-  const navigationItems = [
+const getUserNavigation = () => {
+  return [
     {
       name: "Theme",
       onClick: () => {},
@@ -40,17 +35,6 @@ const getUserNavigation = (isAdmin: boolean) => {
       onClick: signOutUser,
     },
   ];
-
-  return isAdmin
-    ? [
-        {
-          name: "CH Query",
-          onClick: () => {},
-          content: <ClickhouseAdminToggle />,
-        },
-        ...navigationItems,
-      ]
-    : navigationItems;
 };
 
 const pathsWithoutNavigation: string[] = [
@@ -61,6 +45,7 @@ const unauthenticatedPaths: string[] = [
   "/auth/sign-in",
   "/auth/sign-up",
   "/auth/error",
+  "/auth/hf-spaces",
 ];
 // auth or unauthed
 const publishablePaths: string[] = [
@@ -106,12 +91,10 @@ export default function Layout(props: PropsWithChildren) {
     | undefined;
   const session = useSessionWithRetryOnUnauthenticated();
 
-  useCheckNotification(NOTIFICATIONS, session.status === "authenticated");
-
   const enableExperimentalFeatures =
     session.data?.environment.enableExperimentalFeatures ?? false;
 
-  const entitlements = useOrgEntitlements();
+  const entitlements = useEntitlements();
 
   const uiCustomization = useUiCustomization();
 
@@ -310,7 +293,7 @@ export default function Layout(props: PropsWithChildren) {
             navItems={topNavigation}
             secondaryNavItems={bottomNavigation}
             userNavProps={{
-              items: getUserNavigation(cloudAdmin),
+              items: getUserNavigation(),
               user: {
                 name: session.data?.user?.name ?? "",
                 email: session.data?.user?.email ?? "",

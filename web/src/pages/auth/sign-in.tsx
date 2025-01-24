@@ -14,7 +14,7 @@ import { env } from "@/src/env.mjs";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { FcGoogle } from "react-icons/fc";
 import { FaGithub, FaGitlab } from "react-icons/fa";
-import { SiOkta, SiAuth0, SiAmazoncognito } from "react-icons/si";
+import { SiOkta, SiAuth0, SiAmazoncognito, SiKeycloak } from "react-icons/si";
 import { TbBrandAzure, TbBrandOauth } from "react-icons/tb";
 import { signIn } from "next-auth/react";
 import Head from "next/head";
@@ -46,11 +46,13 @@ export type PageProps = {
     credentials: boolean;
     google: boolean;
     github: boolean;
+    githubEnterprise: boolean;
     gitlab: boolean;
     okta: boolean;
     azureAd: boolean;
     auth0: boolean;
     cognito: boolean;
+    keycloak: boolean;
     custom:
       | {
           name: string;
@@ -58,6 +60,7 @@ export type PageProps = {
       | false;
     sso: boolean;
   };
+  runningOnHuggingFaceSpaces: boolean;
   signUpDisabled: boolean;
 };
 
@@ -74,6 +77,10 @@ export const getServerSideProps: GetServerSideProps<PageProps> = async () => {
         github:
           env.AUTH_GITHUB_CLIENT_ID !== undefined &&
           env.AUTH_GITHUB_CLIENT_SECRET !== undefined,
+        githubEnterprise:
+          env.AUTH_GITHUB_ENTERPRISE_CLIENT_ID !== undefined &&
+          env.AUTH_GITHUB_ENTERPRISE_CLIENT_SECRET !== undefined &&
+          env.AUTH_GITHUB_ENTERPRISE_BASE_URL !== undefined,
         gitlab:
           env.AUTH_GITLAB_CLIENT_ID !== undefined &&
           env.AUTH_GITLAB_CLIENT_SECRET !== undefined,
@@ -94,6 +101,10 @@ export const getServerSideProps: GetServerSideProps<PageProps> = async () => {
           env.AUTH_COGNITO_CLIENT_ID !== undefined &&
           env.AUTH_COGNITO_CLIENT_SECRET !== undefined &&
           env.AUTH_COGNITO_ISSUER !== undefined,
+        keycloak:
+          env.AUTH_KEYCLOAK_CLIENT_ID !== undefined &&
+          env.AUTH_KEYCLOAK_CLIENT_SECRET !== undefined &&
+          env.AUTH_KEYCLOAK_ISSUER !== undefined,
         custom:
           env.AUTH_CUSTOM_CLIENT_ID !== undefined &&
           env.AUTH_CUSTOM_CLIENT_SECRET !== undefined &&
@@ -104,6 +115,10 @@ export const getServerSideProps: GetServerSideProps<PageProps> = async () => {
         sso,
       },
       signUpDisabled: env.AUTH_DISABLE_SIGNUP === "true",
+      runningOnHuggingFaceSpaces: env.NEXTAUTH_URL?.replace(
+        "/api/auth",
+        "",
+      ).endsWith(".hf.space"),
     },
   };
 };
@@ -165,6 +180,16 @@ export function SSOButtons({
               Github
             </Button>
           )}
+          {authProviders.githubEnterprise && (
+            <Button
+              onClick={() => handleSignIn("github-enterprise")}
+              variant="secondary"
+              loading={providerSigningIn === "github-enterprise"}
+            >
+              <FaGithub className="mr-3" size={18} />
+              Github Enterprise
+            </Button>
+          )}
           {authProviders.gitlab && (
             <Button
               onClick={() => handleSignIn("gitlab")}
@@ -215,6 +240,18 @@ export function SSOButtons({
               Cognito
             </Button>
           )}
+          {authProviders.keycloak && (
+            <Button
+              onClick={() => {
+                capture("sign_in:button_click", { provider: "keycloak" });
+                void signIn("keycloak");
+              }}
+              variant="secondary"
+            >
+              <SiKeycloak className="mr-3" size={18} />
+              Keycloak
+            </Button>
+          )}
           {authProviders.custom && (
             <Button
               onClick={() => handleSignIn("custom")}
@@ -231,6 +268,33 @@ export function SSOButtons({
   );
 }
 
+/**
+ * Redirect to HuggingFace Spaces auth page (/auth/hf-spaces) if running in an iframe on a HuggingFace host.
+ * The iframe detection needs to happen client-side since window/document objects are not available during SSR.
+ * @param runningOnHuggingFaceSpaces - whether the app is running on a HuggingFace spaces, needs to be checked server-side
+ */
+export function useHuggingFaceRedirect(runningOnHuggingFaceSpaces: boolean) {
+  const router = useRouter();
+
+  useEffect(() => {
+    const isInIframe = () => {
+      try {
+        return window.self !== window.top;
+      } catch (e) {
+        return true;
+      }
+    };
+
+    if (
+      runningOnHuggingFaceSpaces &&
+      typeof window !== "undefined" &&
+      isInIframe()
+    ) {
+      void router.push("/auth/hf-spaces");
+    }
+  }, [router, runningOnHuggingFaceSpaces]);
+}
+
 const signInErrors = [
   {
     code: "OAuthAccountNotLinked",
@@ -239,8 +303,13 @@ const signInErrors = [
   },
 ];
 
-export default function SignIn({ authProviders, signUpDisabled }: PageProps) {
+export default function SignIn({
+  authProviders,
+  signUpDisabled,
+  runningOnHuggingFaceSpaces,
+}: PageProps) {
   const router = useRouter();
+  useHuggingFaceRedirect(runningOnHuggingFaceSpaces);
 
   // handle NextAuth error codes: https://next-auth.js.org/configuration/pages#sign-in-page
   const nextAuthError =
@@ -366,17 +435,10 @@ export default function SignIn({ authProviders, signUpDisabled }: PageProps) {
           </h2>
         </div>
 
-        {env.NEXT_PUBLIC_LANGFUSE_CLOUD_REGION !== undefined && (
-          <div className="-mb-10 mt-4 rounded-lg bg-card p-3 text-center text-sm sm:mx-auto sm:w-full sm:max-w-[480px] sm:rounded-lg sm:px-6">
-            If you are experiencing issues signing in, please force refresh this
-            page (CMD + SHIFT + R) or clear your browser cache. We have made a
-            fix that is currently rolling out to all users.
-          </div>
-        )}
+        <CloudRegionSwitch />
 
         <div className="mt-14 bg-background px-6 py-10 shadow sm:mx-auto sm:w-full sm:max-w-[480px] sm:rounded-lg sm:px-10">
           <div className="space-y-6">
-            <CloudRegionSwitch />
             {authProviders.credentials ? (
               <Form {...credentialsForm}>
                 <form

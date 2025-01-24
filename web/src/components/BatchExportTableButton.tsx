@@ -16,7 +16,6 @@ import React from "react";
 import { api } from "@/src/utils/api";
 import { showSuccessToast } from "@/src/features/notifications/showSuccessToast";
 import { useHasProjectAccess } from "@/src/features/rbac/utils/checkProjectAccess";
-import { useHasOrgEntitlement } from "@/src/features/entitlements/hooks";
 
 export type BatchExportTableButtonProps = {
   projectId: string;
@@ -38,13 +37,17 @@ export const BatchExportTableButton: React.FC<BatchExportTableButtonProps> = (
       showSuccessToast({
         title: "Export queued",
         description: "You will receive an email when the export is ready.",
+        duration: 10000,
+        link: {
+          href: `/project/${props.projectId}/settings/exports`,
+          text: "View exports",
+        },
       });
     },
   });
-  const entitled = useHasOrgEntitlement("batch-export");
   const hasAccess = useHasProjectAccess({
     projectId: props.projectId,
-    scope: "batchExport:create",
+    scope: "batchExports:create",
   });
 
   const handleExport = async (format: BatchExportFileFormat) => {
@@ -61,7 +64,7 @@ export const BatchExportTableButton: React.FC<BatchExportTableButtonProps> = (
     });
   };
 
-  if (!entitled || !hasAccess) return null;
+  if (!hasAccess) return null;
 
   return (
     <DropdownMenu>

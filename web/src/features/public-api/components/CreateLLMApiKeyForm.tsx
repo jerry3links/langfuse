@@ -66,12 +66,10 @@ const formSchema = z
 
 export function CreateLLMApiKeyForm({
   projectId,
-  evalModelsOnly,
   onSuccess,
   customization,
 }: {
   projectId?: string;
-  evalModelsOnly?: boolean;
   onSuccess: () => void;
   customization: ReturnType<typeof useUiCustomization>;
 }) {
@@ -248,18 +246,11 @@ export function CreateLLMApiKeyForm({
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>
-                  {Object.values(LLMAdapter)
-                    .filter(
-                      (provider) =>
-                        !evalModelsOnly ||
-                        provider === LLMAdapter.OpenAI ||
-                        provider === LLMAdapter.Azure,
-                    )
-                    .map((provider) => (
-                      <SelectItem value={provider} key={provider}>
-                        {provider}
-                      </SelectItem>
-                    ))}
+                  {Object.values(LLMAdapter).map((provider) => (
+                    <SelectItem value={provider} key={provider}>
+                      {provider}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
               <FormMessage />
@@ -362,6 +353,27 @@ export function CreateLLMApiKeyForm({
                 <FormDescription>
                   Your API keys are stored encrypted on our servers.
                 </FormDescription>
+                {currentAdapter === LLMAdapter.VertexAI && (
+                  <FormDescription className="text-dark-yellow">
+                    Paste your GCP service account JSON key here. The service
+                    account must have `Vertex AI User` role permissions. Example
+                    JSON:
+                    <pre className="text-xs">
+                      {`{
+  "type": "service_account",
+  "project_id": "<project_id>",
+  "private_key_id": "<private_key_id>",
+  "private_key": "<private_key>",
+  "client_email": "<client_email>",
+  "client_id": "<client_id>",
+  "auth_uri": "<auth_uri>",
+  "token_uri": "<token_uri>",
+  "auth_provider_x509_cert_url": "<auth_provider_x509_cert_url>",
+  "client_x509_cert_url": "<client_x509_cert_url>",
+}`}
+                    </pre>
+                  </FormDescription>
+                )}
                 <FormControl>
                   <Input {...field} />
                 </FormControl>
@@ -386,14 +398,16 @@ export function CreateLLMApiKeyForm({
                   </FormDescription>
                   {currentAdapter === LLMAdapter.Azure && (
                     <FormDescription className="text-dark-yellow">
-                      Azure LLM adapter does not support default models. Please
-                      add a custom model with your deployment name.
+                      Azure LLM adapter does not support default model names
+                      maintained by Langfuse. Instead, please add a custom model
+                      below that is the same as your deployment name.
                     </FormDescription>
                   )}
                   {currentAdapter === LLMAdapter.Bedrock && (
                     <FormDescription className="text-dark-yellow">
-                      Bedrock LLM adapter does not support default models.
-                      Please add your enabled Bedrock model IDs.
+                      Bedrock LLM adapter does not support default model names
+                      maintained by Langfuse. Instead, please add the Bedrock
+                      model IDs you have enabled in the AWS console.
                     </FormDescription>
                   )}
                 </span>

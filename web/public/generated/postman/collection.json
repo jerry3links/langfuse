@@ -558,7 +558,7 @@
           "_type": "endpoint",
           "name": "Batch",
           "request": {
-            "description": "Batched ingestion for Langfuse Tracing. If you want to use tracing via the API, such as to build your own Langfuse client implementation, this is the only API route you need to implement.\n\nNotes:\n\n- Batch sizes are limited to 3.5 MB in total. You need to adjust the number of events per batch accordingly.\n- The API does not return a 4xx status code for input errors. Instead, it responds with a 207 status code, which includes a list of the encountered errors.",
+            "description": "Batched ingestion for Langfuse Tracing. If you want to use tracing via the API, such as to build your own Langfuse client implementation, this is the only API route you need to implement.\n\nNotes:\n\n- Introduction to data model: https://langfuse.com/docs/tracing-data-model\n- Batch sizes are limited to 3.5 MB in total. You need to adjust the number of events per batch accordingly.\n- The API does not return a 4xx status code for input errors. Instead, it responds with a 207 status code, which includes a list of the encountered errors.",
             "url": {
               "raw": "{{baseUrl}}/api/public/ingestion",
               "host": [
@@ -578,6 +578,118 @@
             "body": {
               "mode": "raw",
               "raw": "{\n    \"batch\": [\n        {\n            \"type\": \"trace-create\",\n            \"body\": {\n                \"id\": \"example\",\n                \"timestamp\": \"1994-11-05T13:15:30Z\",\n                \"name\": \"example\",\n                \"userId\": \"example\",\n                \"input\": \"UNKNOWN\",\n                \"output\": \"UNKNOWN\",\n                \"sessionId\": \"example\",\n                \"release\": \"example\",\n                \"version\": \"example\",\n                \"metadata\": \"UNKNOWN\",\n                \"tags\": [\n                    \"example\"\n                ],\n                \"public\": true\n            },\n            \"id\": \"example\",\n            \"timestamp\": \"example\",\n            \"metadata\": \"UNKNOWN\"\n        }\n    ],\n    \"metadata\": \"UNKNOWN\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "_type": "container",
+      "description": null,
+      "name": "Media",
+      "item": [
+        {
+          "_type": "endpoint",
+          "name": "Get",
+          "request": {
+            "description": "Get a media record",
+            "url": {
+              "raw": "{{baseUrl}}/api/public/media/:mediaId",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "public",
+                "media",
+                ":mediaId"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "key": "mediaId",
+                  "value": "",
+                  "description": "The unique langfuse identifier of a media record"
+                }
+              ]
+            },
+            "header": [],
+            "method": "GET",
+            "auth": null,
+            "body": null
+          },
+          "response": []
+        },
+        {
+          "_type": "endpoint",
+          "name": "Patch",
+          "request": {
+            "description": "Patch a media record",
+            "url": {
+              "raw": "{{baseUrl}}/api/public/media/:mediaId",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "public",
+                "media",
+                ":mediaId"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "key": "mediaId",
+                  "value": "",
+                  "description": "The unique langfuse identifier of a media record"
+                }
+              ]
+            },
+            "header": [],
+            "method": "PATCH",
+            "auth": null,
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"uploadedAt\": \"1994-11-05T13:15:30Z\",\n    \"uploadHttpStatus\": 0,\n    \"uploadHttpError\": \"example\",\n    \"uploadTimeMs\": 0\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "_type": "endpoint",
+          "name": "Get Upload Url",
+          "request": {
+            "description": "Get a presigned upload URL for a media record",
+            "url": {
+              "raw": "{{baseUrl}}/api/public/media",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "public",
+                "media"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "header": [],
+            "method": "POST",
+            "auth": null,
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"traceId\": \"example\",\n    \"observationId\": \"example\",\n    \"contentType\": \"image/png\",\n    \"contentLength\": 0,\n    \"sha256Hash\": \"example\",\n    \"field\": \"example\"\n}",
               "options": {
                 "raw": {
                   "language": "json"

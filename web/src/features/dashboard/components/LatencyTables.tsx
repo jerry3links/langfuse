@@ -41,6 +41,7 @@ export const LatencyTables = ({
       orderBy: [
         { column: "duration", agg: "95thPercentile", direction: "DESC" },
       ],
+      queryName: "observation-latencies-aggregated",
     },
     {
       trpc: {
@@ -75,6 +76,7 @@ export const LatencyTables = ({
       orderBy: [
         { column: "duration", agg: "95thPercentile", direction: "DESC" },
       ],
+      queryName: "observation-latencies-aggregated",
     },
     {
       trpc: {
@@ -101,6 +103,7 @@ export const LatencyTables = ({
       orderBy: [
         { column: "duration", agg: "95thPercentile", direction: "DESC" },
       ],
+      queryName: "traces-latencies-aggregated",
     },
     {
       trpc: {
